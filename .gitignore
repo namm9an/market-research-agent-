@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Data (cached/generated)
+backend/data/cache/*.json
+backend/data/reports/*.json
+
+# Logs
+*.log
+
+# Docker
+.docker/
+
+# Node (frontend)
+node_modules/
+.next/
+out/
+frontend/.env.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Docs (stay local only)
+docs/
