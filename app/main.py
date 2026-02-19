@@ -16,9 +16,12 @@ from app.models.schemas import (
     ResearchStartResponse,
     HealthResponse,
     JobStatus,
+    AskRequest,
+    AskResponse,
 )
 from app.services import llm_service
 from app.services.research_engine import run_research
+from app.services.pdf_service import generate_pdf
 
 # --- Logging ---
 logging.basicConfig(
@@ -129,7 +132,15 @@ async def export_research(job_id: str, format: str = "md"):
     if format == "json":
         return job.report
 
-    # Markdown export
+    if format == "pdf":
+        pdf_bytes = generate_pdf(job)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{job.query}_report.pdf"'},
+        )
+
+    # Markdown export (default)
     r = job.report
     md = f"# Market Research Report: {job.query}\n\n"
     md += f"*Generated on {job.completed_at or datetime.utcnow()}*\n\n"
