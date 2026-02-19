@@ -97,7 +97,6 @@ ssh -L 8000:localhost:8000 root@<your-e2e-instance-ip>
 ### 3. Start the Backend
 
 ```bash
-cd backend
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
@@ -159,25 +158,24 @@ curl "http://localhost:8080/api/research/YOUR_JOB_ID/export?format=md"
 
 ```
 market-research-agent/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                # FastAPI entry point + API endpoints
-│   │   ├── config.py              # Environment variables & settings
-│   │   ├── models/
-│   │   │   └── schemas.py         # Pydantic models (SWOT, Report, etc.)
-│   │   ├── services/
-│   │   │   ├── llm_service.py     # vLLM client (OpenAI-compatible)
-│   │   │   ├── search_service.py  # Tavily 4-query search strategy
-│   │   │   └── research_engine.py # Pipeline: search → analyze → compile
-│   │   └── prompts/
-│   │       └── templates.py       # SWOT, Trends, Report prompt templates
-│   ├── data/
-│   │   ├── cache/                 # Cached Tavily search results
-│   │   ├── reports/               # Generated report JSON files
-│   │   └── fallback/              # Pre-loaded demo data
-│   ├── requirements.txt
-│   └── Dockerfile
+├── app/
+│   ├── main.py                    # FastAPI entry point + API endpoints
+│   ├── config.py                  # Environment variables & settings
+│   ├── models/
+│   │   └── schemas.py             # Pydantic models (SWOT, Report, etc.)
+│   ├── services/
+│   │   ├── llm_service.py         # vLLM client (OpenAI-compatible)
+│   │   ├── search_service.py      # Tavily 4-query search strategy
+│   │   └── research_engine.py     # Pipeline: search → analyze → compile
+│   └── prompts/
+│       └── templates.py           # SWOT, Trends, Report prompt templates
+├── data/
+│   ├── cache/                     # Cached Tavily search results
+│   ├── reports/                   # Generated report JSON files
+│   └── fallback/                  # Pre-loaded demo data
 ├── setup_vllm.sh                  # GPU instance setup script
+├── requirements.txt
+├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -219,21 +217,6 @@ The script:
 | **Key findings** | 10+ per report |
 | **Model VRAM usage** | ~64GB (BF16) |
 | **API credits per report** | ~8 Tavily credits |
-
----
-
-## 🗺️ Roadmap
-
-- [x] Backend API with research pipeline
-- [x] Tavily AI-native search integration
-- [x] vLLM model serving on E2E A100
-- [x] Markdown report export
-- [ ] PDF report export
-- [ ] Follow-up Q&A (ask questions about reports)
-- [ ] Next.js frontend with dark theme
-- [ ] Docker deployment
-- [ ] CrewAI agent framework integration
-- [ ] Pre-loaded fallback data for demos
 
 ---
 

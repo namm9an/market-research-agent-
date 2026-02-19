@@ -25,8 +25,8 @@ env/
 .DS_Store
 
 # Data (cached/generated)
-backend/data/cache/*.json
-backend/data/reports/*.json
+data/cache/*.json
+data/reports/*.json
 
 # Logs
 *.log
