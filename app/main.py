@@ -199,6 +199,82 @@ async def list_jobs():
     ]
 
 
+# --- Follow-up Q&A ---
+
+@app.post("/api/research/{job_id}/ask", response_model=AskResponse)
+async def ask_question(job_id: str, request: AskRequest):
+    """Ask a follow-up question about a completed research report.
+
+    Limited to 5 questions per report.
+    """
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    if job.status != JobStatus.COMPLETED or not job.report:
+        raise HTTPException(status_code=400, detail="Report not yet completed")
+    if job.qa_remaining <= 0:
+        raise HTTPException(
+            status_code=429,
+            detail="Question limit reached (5 per report)",
+        )
+
+    # Build context from the report
+    r = job.report
+    report_context = (
+        f"Company: {job.query}\n"
+        f"Overview: {r.company_overview}\n"
+        f"Strengths: {', '.join(r.swot.strengths)}\n"
+        f"Weaknesses: {', '.join(r.swot.weaknesses)}\n"
+        f"Opportunities: {', '.join(r.swot.opportunities)}\n"
+        f"Threats: {', '.join(r.swot.threats)}\n"
+        f"Competitive Landscape: {r.competitive_landscape}\n"
+        f"Key Findings: {'; '.join(r.key_findings)}\n"
+    )
+
+    # Include previous Q&A for continuity
+    qa_context = ""
+    for qa in job.qa_history:
+        qa_context += f"Q: {qa['question']}\nA: {qa['answer']}\n\n"
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a market research analyst assistant. Answer questions "
+                "about the research report below. Be concise, specific, and "
+                "only use information from the report. If the answer isn't in "
+                "the report, say so.\n\n"
+                f"REPORT DATA:\n{report_context}"
+            ),
+        },
+    ]
+
+    # Add Q&A history as conversation
+    for qa in job.qa_history:
+        messages.append({"role": "user", "content": qa["question"]})
+        messages.append({"role": "assistant", "content": qa["answer"]})
+
+    messages.append({"role": "user", "content": request.question})
+
+    logger.info(f"[{job_id}] Q&A question ({job.qa_remaining} remaining): {request.question[:80]}")
+
+    answer = await llm_service.chat_completion(
+        messages=messages,
+        temperature=0.2,
+        max_tokens=500,
+    )
+
+    # Track Q&A
+    job.qa_history.append({"question": request.question, "answer": answer})
+    job.qa_remaining -= 1
+
+    return AskResponse(
+        answer=answer,
+        question=request.question,
+        remaining_questions=job.qa_remaining,
+    )
+
+
 # --- Startup ---
 
 @app.on_event("startup")
