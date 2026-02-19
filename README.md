@@ -226,9 +226,3 @@ The script:
 - **Infrastructure**: [E2E Networks](https://www.e2enetworks.com/) — Indian GPU cloud (A100 80GB)
 - **Search**: [Tavily](https://tavily.com/) — AI-native search API
 - **Serving**: [vLLM](https://github.com/vllm-project/vllm) — high-throughput LLM serving
-
----
-
-## 📄 License
-
-This project is a Proof of Concept (POC) for demonstrating AI capabilities on GPU infrastructure.
