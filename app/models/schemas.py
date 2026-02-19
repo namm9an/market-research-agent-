@@ -73,6 +73,9 @@ class ResearchJob(BaseModel):
     duration_seconds: Optional[float] = None
     report: Optional[ResearchReport] = None
     error: Optional[str] = None
+    # Follow-up Q&A
+    qa_history: list[dict] = Field(default_factory=list)
+    qa_remaining: int = Field(default=5)
 
 
 class ResearchStartResponse(BaseModel):
@@ -85,3 +88,15 @@ class HealthResponse(BaseModel):
     model: str = ""
     vllm_connected: bool = False
     tavily_configured: bool = False
+
+
+# --- Q&A Models ---
+
+class AskRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=500, description="Follow-up question about the report")
+
+
+class AskResponse(BaseModel):
+    answer: str
+    question: str
+    remaining_questions: int
