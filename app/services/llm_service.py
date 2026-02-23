@@ -1,8 +1,8 @@
 """LLM service — connects to vLLM's OpenAI-compatible API."""
 
 import logging
-
 import httpx
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from app.config import (
     MODEL_NAME,
@@ -26,10 +26,16 @@ async def check_vllm_health() -> bool:
         return False
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+    reraise=True
+)
 async def chat_completion(
-    messages: list[dict],
-    temperature: float | None = None,
-    max_tokens: int | None = None,
+    messages: list[dict[str, str]],
+    temperature: float = LLM_TEMPERATURE,
+    max_tokens: int = LLM_MAX_TOKENS,
 ) -> str:
     """Send a chat completion request to vLLM and return the response text.
 
