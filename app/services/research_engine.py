@@ -57,6 +57,51 @@ def _parse_json_response(text: str) -> dict | list:
     return {}
 
 
+def _extract_swot(data) -> SWOTAnalysis:
+    """Robustly extract SWOT from various LLM response formats.
+
+    Handles:
+    - Direct: {"strengths": [...], "weaknesses": [...], ...}
+    - Nested: {"swot": {"strengths": [...], ...}}
+    - Case variations: {"Strengths": [...]}
+    - Wrapped: {"CompanyA_vs_CompanyB": {"strengths": [...]}}
+    """
+    if not isinstance(data, dict):
+        return SWOTAnalysis()
+
+    swot_keys = {"strengths", "weaknesses", "opportunities", "threats"}
+
+    def _find_swot_keys(d: dict) -> dict:
+        """Find SWOT keys in a dict, case-insensitive."""
+        result = {}
+        lower_map = {k.lower(): v for k, v in d.items()}
+        for key in swot_keys:
+            if key in lower_map and isinstance(lower_map[key], list):
+                result[key] = lower_map[key]
+        return result
+
+    # Try direct extraction
+    found = _find_swot_keys(data)
+    if len(found) >= 2:  # At least 2 SWOT keys found
+        return SWOTAnalysis(**{k: found.get(k, []) for k in swot_keys})
+
+    # Try one level deeper (nested under "swot" or a wrapper key)
+    for key, val in data.items():
+        if isinstance(val, dict):
+            found = _find_swot_keys(val)
+            if len(found) >= 2:
+                return SWOTAnalysis(**{k: found.get(k, []) for k in swot_keys})
+            # Try two levels deep (e.g. {"analysis": {"swot": {...}}})
+            for key2, val2 in val.items():
+                if isinstance(val2, dict):
+                    found = _find_swot_keys(val2)
+                    if len(found) >= 2:
+                        return SWOTAnalysis(**{k: found.get(k, []) for k in swot_keys})
+
+    logger.warning(f"Could not extract SWOT from LLM response keys: {list(data.keys())}")
+    return SWOTAnalysis()
+
+
 async def run_research(job: ResearchJob) -> ResearchJob:
     """Execute the full research pipeline for a company.
 
@@ -94,7 +139,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
             {"role": "user", "content": swot_prompt},
         ])
         swot_data = _parse_json_response(swot_response)
-        swot = SWOTAnalysis(**swot_data) if isinstance(swot_data, dict) else SWOTAnalysis()
+        swot = _extract_swot(swot_data)
 
         logger.info(f"[{job.job_id}] SWOT generated: {len(swot.strengths)}S/{len(swot.weaknesses)}W/{len(swot.opportunities)}O/{len(swot.threats)}T")
 
