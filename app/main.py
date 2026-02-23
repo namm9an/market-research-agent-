@@ -205,7 +205,7 @@ async def list_jobs():
 async def ask_question(job_id: str, request: AskRequest):
     """Ask a follow-up question about a completed research report.
 
-    Limited to 5 questions per report.
+    Limited to 10 questions per report. Returns proactive suggestions.
     """
     job = jobs.get(job_id)
     if not job:
@@ -215,7 +215,7 @@ async def ask_question(job_id: str, request: AskRequest):
     if job.qa_remaining <= 0:
         raise HTTPException(
             status_code=429,
-            detail="Question limit reached (5 per report)",
+            detail="Question limit reached (10 per report)",
         )
 
     # Build context from the report
@@ -268,10 +268,51 @@ async def ask_question(job_id: str, request: AskRequest):
     job.qa_history.append({"question": request.question, "answer": answer})
     job.qa_remaining -= 1
 
+    # Generate proactive follow-up suggestions (if questions remain)
+    suggested_questions: list[str] = []
+    if job.qa_remaining > 0:
+        try:
+            suggestion_messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Based on the market research report and the Q&A conversation below, "
+                        "suggest exactly 3 concise follow-up questions the user might want to ask next. "
+                        "Return ONLY the 3 questions, one per line, numbered 1-3. No other text.\n\n"
+                        f"REPORT: {job.query}\n"
+                        f"Last question: {request.question}\n"
+                        f"Last answer: {answer}\n"
+                        f"Previous Q&A count: {len(job.qa_history)}\n"
+                        f"Report topics: SWOT, trends, competitive landscape, key findings"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": "Suggest 3 follow-up questions:",
+                },
+            ]
+            raw = await llm_service.chat_completion(
+                messages=suggestion_messages,
+                temperature=0.5,
+                max_tokens=200,
+            )
+            # Parse numbered lines
+            for line in raw.strip().split("\n"):
+                line = line.strip()
+                if line and line[0].isdigit():
+                    # Remove leading number, dot, and whitespace
+                    q = line.lstrip("0123456789").lstrip(".").lstrip(")").strip()
+                    if q:
+                        suggested_questions.append(q)
+            suggested_questions = suggested_questions[:3]
+        except Exception as e:
+            logger.warning(f"[{job_id}] Failed to generate suggestions: {e}")
+
     return AskResponse(
         answer=answer,
         question=request.question,
         remaining_questions=job.qa_remaining,
+        suggested_questions=suggested_questions,
     )
 
 
