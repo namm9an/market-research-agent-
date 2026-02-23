@@ -135,7 +135,7 @@ async def export_research(job_id: str, format: str = "md"):
     if format == "pdf":
         pdf_bytes = generate_pdf(job)
         return Response(
-            content=pdf_bytes,
+            content=bytes(pdf_bytes),
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{job.query}_report.pdf"'},
         )
