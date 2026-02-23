@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { askQuestion } from "@/lib/api";
 
 interface QAChatProps {
@@ -69,9 +71,11 @@ export default function QAChat({ jobId, history, remaining }: QAChatProps) {
                                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-[10px] font-bold text-success">
                                     A
                                 </span>
-                                <p className="whitespace-pre-line text-sm text-muted">
-                                    {qa.answer}
-                                </p>
+                                <div className="qa-markdown text-sm text-muted">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {qa.answer}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                     ))}
