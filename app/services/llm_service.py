@@ -4,7 +4,12 @@ import logging
 
 import httpx
 
-from app.config import VLLM_BASE_URL, MODEL_NAME, LLM_TEMPERATURE, LLM_MAX_TOKENS
+from app.config import (
+    MODEL_NAME,
+    VLLM_BASE_URL,
+    LLM_TEMPERATURE,
+    LLM_MAX_TOKENS,
+)
 
 logger = logging.getLogger(__name__)
 
