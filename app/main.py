@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from app.config import MODEL_NAME, TAVILY_API_KEY, REPORTS_DIR
 from app.models.schemas import (
