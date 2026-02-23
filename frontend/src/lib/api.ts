@@ -136,3 +136,18 @@ export async function exportReport(
 export async function healthCheck() {
     return apiFetch<HealthResponse>("/api/health");
 }
+
+/** Extract content from a URL */
+export interface ExtractResponse {
+    url: string;
+    content: string;
+    word_count: number;
+}
+
+export async function extractUrl(url: string) {
+    return apiFetch<ExtractResponse>("/api/extract", {
+        method: "POST",
+        body: JSON.stringify({ url }),
+    });
+}
+

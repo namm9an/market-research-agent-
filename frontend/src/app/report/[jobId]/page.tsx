@@ -11,6 +11,7 @@ import FindingsList from "@/components/FindingsList";
 import SourcesList from "@/components/SourcesList";
 import ExportButtons from "@/components/ExportButtons";
 import QAChat from "@/components/QAChat";
+import UrlExtractor from "@/components/UrlExtractor";
 import Link from "next/link";
 
 const POLL_INTERVAL = 3000;
@@ -146,6 +147,9 @@ export default function ReportPage() {
                             history={job.qa_history}
                             remaining={job.qa_remaining}
                         />
+
+                        {/* Crawl & Extract */}
+                        <UrlExtractor />
                     </div>
                 )}
             </div>
