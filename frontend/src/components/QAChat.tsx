@@ -79,22 +79,24 @@ export default function QAChat({ jobId, history, remaining }: QAChatProps) {
             )}
 
             {/* Proactive suggestions */}
-            {suggestions.length > 0 && localRemaining > 0 && (
+            {suggestions.filter(s => s.length > 10 && !s.match(/^\.+$/)).length > 0 && localRemaining > 0 && (
                 <div className="mb-4">
                     <p className="mb-2 text-xs font-medium text-muted/60 uppercase tracking-wide">
                         Suggested questions
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                        {suggestions.map((s, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleAsk(s)}
-                                disabled={loading}
-                                className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary transition-all hover:bg-primary/15 hover:border-primary/40 active:scale-95 disabled:opacity-40 text-left"
-                            >
-                                {s}
-                            </button>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                        {suggestions
+                            .filter(s => s.length > 10 && !s.match(/^\.+$/))
+                            .map((s, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => handleAsk(s)}
+                                    disabled={loading}
+                                    className="w-full rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-primary transition-all hover:bg-primary/15 hover:border-primary/40 active:scale-[0.98] disabled:opacity-40 text-left"
+                                >
+                                    {s}
+                                </button>
+                            ))}
                     </div>
                 </div>
             )}
