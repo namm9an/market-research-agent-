@@ -198,6 +198,26 @@ async def list_jobs():
         for job in sorted(jobs.values(), key=lambda j: j.created_at, reverse=True)
     ]
 
+# --- Crawl & Extract ---
+
+class ExtractRequest(BaseModel):
+    url: str = Field(..., min_length=5, description="URL to crawl and extract content from")
+
+@app.post("/api/extract")
+async def extract_content(request: ExtractRequest):
+    """Crawl a URL and extract its content using Tavily."""
+    from app.services.search_service import extract_url
+
+    result = extract_url(request.url)
+    if result.get("failed"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Extraction failed"))
+
+    return {
+        "url": result["url"],
+        "content": result["raw_content"],
+        "word_count": len(result["raw_content"].split()),
+    }
+
 
 # --- Follow-up Q&A ---
 

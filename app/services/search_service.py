@@ -204,3 +204,32 @@ def format_search_context(search_results: dict) -> str:
     context = "\n".join(sections)
     logger.info(f"Context formatted: {len(context)} chars (~{len(context)//4} tokens)")
     return context
+
+
+def extract_url(url: str) -> dict:
+    """Extract content from a URL using Tavily's extract API.
+
+    Args:
+        url: The URL to crawl and extract content from.
+
+    Returns:
+        Dict with 'url', 'raw_content', and metadata.
+    """
+    client = _get_client()
+    logger.info(f"Tavily extract: url='{url}'")
+
+    try:
+        response = client.extract(urls=[url])
+        results = response.get("results", [])
+        if results:
+            result = results[0]
+            return {
+                "url": result.get("url", url),
+                "raw_content": result.get("raw_content", ""),
+                "failed": False,
+            }
+        return {"url": url, "raw_content": "", "failed": True, "error": "No content extracted"}
+    except Exception as e:
+        logger.error(f"Tavily extract failed for {url}: {e}")
+        return {"url": url, "raw_content": "", "failed": True, "error": str(e)}
+
