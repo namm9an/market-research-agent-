@@ -136,20 +136,26 @@ export default function Sidebar() {
         if (deletingIds.includes(jobId)) return;
         setDeletingIds((ids) => [...ids, jobId]);
 
+        // Remove immediately from local history so stale jobs can always be cleared.
+        setHistory((prev) => {
+            const next = prev.filter((item) => item.id !== jobId);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+            return next;
+        });
+
         try {
             await deleteJob(jobId);
-
-            setHistory((prev) => {
-                const next = prev.filter((item) => item.id !== jobId);
-                localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-                return next;
-            });
-
-            window.dispatchEvent(new Event("mra_history_updated"));
         } catch (e) {
-            console.error("Failed to delete history item", e);
+            const message =
+                e instanceof Error ? e.message.toLowerCase() : "";
+            // Old local-only jobs won't exist on backend; treat as already deleted.
+            if (!message.includes("not found")) {
+                console.error("Failed to delete history item", e);
+                void loadHistory();
+            }
         } finally {
             setDeletingIds((ids) => ids.filter((id) => id !== jobId));
+            window.dispatchEvent(new Event("mra_history_updated"));
         }
     }
 
