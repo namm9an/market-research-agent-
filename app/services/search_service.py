@@ -221,9 +221,9 @@ def format_search_context(search_results: dict) -> str:
 def extract_urls(urls: list[str]) -> dict:
     """Extract content directly from a list of URLs using the Tavily extract API."""
     client = _get_client()
-    logger.info(f"Tavily extract: urls={urls}")
+    logger.info(f"Tavily extract: urls={urls} depth='advanced'")
     try:
-        response = client.extract(urls=urls)
+        response = client.extract(urls=urls, extract_depth="advanced")
         return response
     except Exception as e:
         logger.error(f"Failed to extract URLs {urls}: {e}")

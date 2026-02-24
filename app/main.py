@@ -228,34 +228,10 @@ async def extract_content(payload: ExtractRequest, request: Request):
     """Extract content from URLs using Tavily extract API."""
     from app.services.search_service import extract_urls
 
+    # We use extract_depth="advanced" to force Tavily to render JavaScript pages
     result = extract_urls(payload.urls)
     if result.get("failed"):
         raise HTTPException(status_code=400, detail=result.get("error", "Extraction failed"))
-
-    # Use the LLM to clean up the raw extracted text (remove CSS/JSON/Menus)
-    if "results" in result:
-        for r in result["results"]:
-            raw_content = r.get("raw_content", "")
-            if raw_content:
-                messages = [
-                    {
-                        "role": "system",
-                        "content": "You are a data-cleaning assistant. You receive poorly-formatted web scrapes containing CSS variables, JSON payloads, and navigation menus. Your only job is to REWRITE THE ENTIRE TEXTUAL CONTENT of the page into clean, readable Markdown layout. DO NOT SUMMARIZE. DO NOT SHORTEN. Preserve all headings, paragraphs, and lists. Strip out the code blocks, CSS, and JSON data."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"RAW SCRAPE:\n{raw_content[:20000]}"
-                    }
-                ]
-                try:
-                    cleaned = await llm_service.chat_completion(
-                        messages=messages,
-                        temperature=0.1,
-                        max_tokens=4000,
-                    )
-                    r["raw_content"] = cleaned
-                except Exception as e:
-                    logger.warning(f"Failed to clean scrape with LLM: {e}")
 
     return result
 
