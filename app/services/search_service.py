@@ -99,6 +99,14 @@ def search(
     logger.info(f"Tavily search: query='{query}', topic={topic}")
     response = client.search(**kwargs)
 
+    # Clean the raw content of each search result to prevent JSON/CSS noise
+    if response.get("results"):
+        for result in response["results"]:
+            if result.get("content"):
+                result["content"] = clean_extracted_content(result["content"])
+            if result.get("raw_content"):
+                result["raw_content"] = clean_extracted_content(result["raw_content"])
+
     # Save to cache
     if use_cache:
         _save_cache(key, response)
@@ -283,6 +291,13 @@ def crawl_url(url: str, extract_depth: str = "advanced") -> dict:
     logger.info(f"Tavily crawl: url='{url}' depth='{extract_depth}'")
     try:
         response = client.crawl(url=url, extract_depth=extract_depth)
+        
+        # Clean each result's raw_content before returning
+        if response.get("results"):
+            for result in response["results"]:
+                if result.get("raw_content"):
+                    result["raw_content"] = clean_extracted_content(result["raw_content"])
+                    
         return response
     except Exception as e:
         logger.error(f"Failed to crawl URL {url}: {e}")
