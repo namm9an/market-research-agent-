@@ -28,6 +28,19 @@ export default function Home() {
     try {
       if (actionType === "research") {
         const job = await startResearch(payload);
+
+        // Save to Sidebar History
+        try {
+          const historyItem = { id: job.job_id, title: payload, date: new Date().toISOString() };
+          const past = JSON.parse(localStorage.getItem("mra_history") || "[]");
+          // Prevent duplicates
+          const filtered = past.filter((item: any) => item.id !== job.job_id).slice(0, 19);
+          localStorage.setItem("mra_history", JSON.stringify([historyItem, ...filtered]));
+          window.dispatchEvent(new Event("mra_history_updated"));
+        } catch (e) {
+          console.error("Failed to save history", e);
+        }
+
         router.push(`/report/${job.job_id}`);
       } else if (actionType === "crawl") {
         const { crawlUrl } = await import("@/lib/api");
