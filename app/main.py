@@ -67,7 +67,7 @@ app.add_middleware(
 jobs: dict[str, ResearchJob] = {}
 
 LEADERSHIP_QUERY_RE = re.compile(
-    r"\b(leader|leadership|ceo|cfo|cto|coo|executive|board|founder|president|chair|managing director|vp|svp)\b",
+    r"\b(leader|leaders|leadership|ceo|cfo|cto|coo|executive|executives|board|founder|president|chair|managing director|country manager|general manager|vp|svp|head|heads)\b",
     flags=re.IGNORECASE,
 )
 REASONING_LEAK_RE = re.compile(
@@ -83,25 +83,70 @@ def _needs_followup_web_context(question: str) -> bool:
         return True
     if "who is" in q or "who are" in q or "current" in q or "latest" in q:
         return True
+    if "pull up" in q or "data on" in q or "names and titles" in q:
+        return True
     return False
 
 
 def _build_web_context(company: str, question: str) -> str:
     """Fetch and format compact Tavily context for follow-up factual questions."""
-    query = f"{company} {question} official leadership team executives"
-    result = search_service.search(
-        query=query,
-        topic="news",
-        time_range="year",
-        use_cache=False,
-        max_results=5,
-    )
+    q = question.lower()
+    search_queries = [
+        f"{company} leadership team executives official",
+        f"{company} CEO CFO executive leadership",
+    ]
+    if "india" in q:
+        search_queries.append(f"{company} India leadership country manager general manager")
+
+    collected_results: list[dict] = []
+    web_summaries: list[str] = []
+    seen_urls: set[str] = set()
+
+    for sq in search_queries:
+        result = search_service.search(
+            query=sq,
+            topic="general",
+            use_cache=False,
+            max_results=4,
+        )
+        answer = result.get("answer")
+        if isinstance(answer, str) and answer.strip():
+            web_summaries.append(answer.strip())
+
+        for item in result.get("results", [])[:4]:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url", "")
+            if isinstance(url, str) and url and url not in seen_urls:
+                seen_urls.add(url)
+                collected_results.append(item)
+
+    # Fallback to recency-focused search if general web retrieval is sparse.
+    if len(collected_results) < 3:
+        fallback_query = f"{company} {question} leadership executives"
+        fallback = search_service.search(
+            query=fallback_query,
+            topic="news",
+            time_range="year",
+            use_cache=False,
+            max_results=5,
+        )
+        answer = fallback.get("answer")
+        if isinstance(answer, str) and answer.strip():
+            web_summaries.append(answer.strip())
+        for item in fallback.get("results", [])[:5]:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url", "")
+            if isinstance(url, str) and url and url not in seen_urls:
+                seen_urls.add(url)
+                collected_results.append(item)
 
     lines: list[str] = []
-    if result.get("answer"):
-        lines.append(f"Web summary: {result['answer']}")
+    if web_summaries:
+        lines.append(f"Web summary: {web_summaries[0]}")
 
-    for i, item in enumerate(result.get("results", [])[:5], 1):
+    for i, item in enumerate(collected_results[:7], 1):
         title = item.get("title", "Untitled")
         url = item.get("url", "")
         snippet = (item.get("content") or item.get("raw_content") or "").strip()
@@ -410,7 +455,8 @@ async def ask_question(job_id: str, request: AskRequest):
     )
 
     web_context = ""
-    if _needs_followup_web_context(request.question):
+    needs_web_context = _needs_followup_web_context(request.question)
+    if needs_web_context:
         try:
             web_context = _build_web_context(job.query, request.question)
         except Exception as e:
@@ -427,20 +473,25 @@ async def ask_question(job_id: str, request: AskRequest):
             "content": (
                 "You are a strategic market research analyst.\n"
                 "Return final answer only. Never reveal hidden reasoning, self-talk, or analysis process.\n"
-                "Use REPORT DATA as primary context. If WEB CONTEXT is present, use it for current factual entities "
-                "(names/titles/dates) and cite source numbers like [1], [2].\n"
+                "Use REPORT DATA as primary context for analysis questions. "
+                "For people/title/current-entity questions, prioritize WEB CONTEXT and cite source numbers like [1], [2].\n"
                 f"As-of date for your answer: {utc_today} (UTC).\n"
-                "If context is insufficient, say what is missing instead of guessing.\n\n"
+                "If context is insufficient, say what is missing instead of guessing.\n"
+                "If prior assistant messages conflict with WEB CONTEXT, correct them explicitly.\n\n"
                 f"REPORT DATA:\n{report_context}\n\n"
                 f"WEB CONTEXT:\n{web_context if web_context else 'None'}"
             ),
         },
     ]
 
-    # Add Q&A history as conversation
-    for qa in job.qa_history:
-        messages.append({"role": "user", "content": qa["question"]})
-        messages.append({"role": "assistant", "content": qa["answer"]})
+    # Add Q&A history. For factual-entity questions, avoid anchoring on prior assistant mistakes.
+    if needs_web_context:
+        for qa in job.qa_history[-4:]:
+            messages.append({"role": "user", "content": qa["question"]})
+    else:
+        for qa in job.qa_history:
+            messages.append({"role": "user", "content": qa["question"]})
+            messages.append({"role": "assistant", "content": qa["answer"]})
 
     messages.append({"role": "user", "content": request.question})
 
