@@ -1,5 +1,6 @@
 """Search service — wraps Tavily API for AI-native web search."""
 
+import re
 import json
 import hashlib
 import logging
@@ -212,6 +213,40 @@ def format_search_context(search_results: dict) -> str:
     return context
 
 
+def clean_extracted_content(raw_content: str) -> str:
+    """Remove JSON blobs, script noise, and theme data from extracted content."""
+    if not isinstance(raw_content, str):
+        return raw_content
+    lines = raw_content.split('\n')
+    cleaned = []
+    
+    for line in lines:
+        stripped = line.strip()
+        
+        # Skip empty lines clusters
+        if not stripped:
+            continue
+            
+        # Skip lines that look like JSON/JS objects (theme configs, etc.)
+        if stripped.startswith('{') and '":"' in stripped:
+            continue
+            
+        # Skip lines with CSS variable patterns
+        if re.search(r'(primary-color|pcsx-|varTheme|customTheme|themeOptions|font-family)', stripped):
+            continue
+            
+        # Skip lines that are mostly special characters
+        if len(re.sub(r'[^a-zA-Z0-9\s]', '', stripped)) < len(stripped) * 0.4:
+            continue
+            
+        # Skip very short noise lines, but allow markdown headers & lists
+        if len(stripped) < 15 and not stripped.startswith(('#', '-', '*', '>')):
+            continue
+            
+        cleaned.append(line)
+    return '\n'.join(cleaned).strip()
+
+
 @retry(
     wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(3),
@@ -224,6 +259,13 @@ def extract_urls(urls: list[str]) -> dict:
     logger.info(f"Tavily extract: urls={urls} depth='advanced'")
     try:
         response = client.extract(urls=urls, extract_depth="advanced")
+        
+        # Clean each result's raw_content before returning
+        if response.get("results"):
+            for result in response["results"]:
+                if result.get("raw_content"):
+                    result["raw_content"] = clean_extracted_content(result["raw_content"])
+                    
         return response
     except Exception as e:
         logger.error(f"Failed to extract URLs {urls}: {e}")
