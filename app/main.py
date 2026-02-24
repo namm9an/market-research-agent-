@@ -70,6 +70,10 @@ LEADERSHIP_QUERY_RE = re.compile(
     r"\b(leader|leaders|leadership|ceo|cfo|cto|coo|executive|executives|board|founder|president|chair|managing director|country manager|general manager|vp|svp|head|heads)\b",
     flags=re.IGNORECASE,
 )
+ACQUISITION_QUERY_RE = re.compile(
+    r"\b(acquisition|acquisitions|acquire|acquired|buyout|merger|merged|takeover|deal|deals)\b",
+    flags=re.IGNORECASE,
+)
 REASONING_LEAK_RE = re.compile(
     r"\b(the user asks|let'?s think|better to answer|given uncertainty|actually i think|not sure\.)\b",
     flags=re.IGNORECASE,
@@ -78,6 +82,7 @@ REASONING_LINE_RE = re.compile(
     r"(?i)^\s*(we need to|let'?s|i think|actually|not sure|could be|maybe|better to|given uncertainty|target company:|output requirements:|must end each bullet|we can answer|the user asks)"
 )
 CITATION_RE = re.compile(r"\[\d+\]")
+CITATION_ONLY_RE = re.compile(r"^\s*(\[\d+\]\s*)+$")
 
 
 def _needs_followup_web_context(question: str) -> bool:
