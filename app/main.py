@@ -74,6 +74,9 @@ REASONING_LEAK_RE = re.compile(
     r"\b(the user asks|let'?s think|better to answer|given uncertainty|actually i think|not sure\.)\b",
     flags=re.IGNORECASE,
 )
+REASONING_LINE_RE = re.compile(
+    r"(?i)^\s*(we need to|let'?s|i think|actually|not sure|could be|maybe|better to|given uncertainty|target company:|output requirements:|must end each bullet|we can answer|the user asks)"
+)
 CITATION_RE = re.compile(r"\[\d+\]")
 
 
@@ -219,11 +222,19 @@ def _sanitize_followup_answer(text: str) -> str:
     if REASONING_LEAK_RE.search(cleaned):
         kept_lines: list[str] = []
         for line in cleaned.splitlines():
-            if not REASONING_LEAK_RE.search(line):
+            if not REASONING_LEAK_RE.search(line) and not REASONING_LINE_RE.search(line):
                 kept_lines.append(line)
         candidate = "\n".join(kept_lines).strip()
         if candidate:
             cleaned = candidate
+
+    # Second line-level sweep for "reasoning voice" leakage.
+    filtered_lines: list[str] = []
+    for line in cleaned.splitlines():
+        if REASONING_LINE_RE.search(line):
+            continue
+        filtered_lines.append(line)
+    cleaned = "\n".join(filtered_lines).strip()
 
     return cleaned
 
@@ -231,6 +242,30 @@ def _sanitize_followup_answer(text: str) -> str:
 def _has_citations(text: str) -> bool:
     """Check whether answer includes source citation markers like [1], [2]."""
     return bool(CITATION_RE.search(text or ""))
+
+
+def _looks_like_reasoning_leak(text: str) -> bool:
+    """Detect responses that still look like internal reasoning instead of final answer."""
+    if not text:
+        return False
+    lowered = text.lower()
+    markers = [
+        "we need to answer",
+        "let's think",
+        "i think",
+        "not sure",
+        "output requirements",
+        "target company",
+        "must end each bullet",
+        "given uncertainty",
+    ]
+    if any(m in lowered for m in markers):
+        return True
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        return False
+    flagged = sum(1 for ln in lines if REASONING_LINE_RE.search(ln))
+    return flagged >= 2
 
 
 # --- Background task runner ---
@@ -583,12 +618,42 @@ async def ask_question(job_id: str, request: AskRequest):
                 answer = strict_answer
             else:
                 answer = (
-                    "I couldn't verify leadership names reliably from live sources for this question. "
-                    "Please ask with the exact company and geography (for example: "
-                    f"'{job.query} leadership in India') and retry."
+                    "I couldn't verify this reliably from live sources for your question. "
+                    "Please retry with a more specific question (for example: "
+                    f"'{job.query} acquisitions in 2024 with sources')."
                 )
     elif not answer:
         answer = "I don't have enough reliable context to answer that accurately."
+
+    # Final safety net: if reasoning text still leaked, force a clean rewrite.
+    if _looks_like_reasoning_leak(answer):
+        rewrite_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Rewrite the assistant answer as FINAL OUTPUT ONLY.\n"
+                    "Do not include planning, self-talk, or process language.\n"
+                    "Use only the provided contexts; if uncertain, say so briefly."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {request.question}\n\n"
+                    f"REPORT DATA:\n{report_context}\n\n"
+                    f"WEB CONTEXT:\n{web_context if web_context else 'None'}\n\n"
+                    f"DRAFT ANSWER:\n{answer}"
+                ),
+            },
+        ]
+        rewrite_raw = await llm_service.chat_completion(
+            messages=rewrite_messages,
+            temperature=0.1,
+            max_tokens=500,
+        )
+        rewritten = _sanitize_followup_answer(rewrite_raw)
+        if rewritten:
+            answer = rewritten
 
     # Track Q&A
     job.qa_history.append({"question": request.question, "answer": answer})

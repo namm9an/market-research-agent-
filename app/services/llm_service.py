@@ -9,6 +9,7 @@ from app.config import (
     VLLM_BASE_URL,
     LLM_TEMPERATURE,
     LLM_MAX_TOKENS,
+    LLM_ENABLE_THINKING,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,8 @@ async def chat_completion(
         "temperature": temperature or LLM_TEMPERATURE,
         "max_tokens": max_tokens or LLM_MAX_TOKENS,
     }
+    if not LLM_ENABLE_THINKING:
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
 
     logger.info(f"LLM request: {len(messages)} messages, model={MODEL_NAME}")
 

@@ -66,12 +66,17 @@ echo "   Model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"
 echo "   First run downloads the model (~32GB)"
 echo ""
 
+VLLM_MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-1000000}"
+echo "   Max context: ${VLLM_MAX_MODEL_LEN} tokens"
+echo ""
+
 tmux new-session -d -s vllm-server \
     "source /root/vllm-env/bin/activate && \
+     export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 && \
      python -m vllm.entrypoints.openai.api_server \
         --model nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16 \
         --trust-remote-code \
-        --max-model-len 8192 \
+        --max-model-len ${VLLM_MAX_MODEL_LEN} \
         --host 0.0.0.0 \
         --port 8000 \
         2>&1 | tee /root/vllm_server.log"
