@@ -232,6 +232,31 @@ async def extract_content(payload: ExtractRequest, request: Request):
     if result.get("failed"):
         raise HTTPException(status_code=400, detail=result.get("error", "Extraction failed"))
 
+    # Use the LLM to clean up the raw extracted text (remove CSS/JSON/Menus)
+    if "results" in result:
+        for r in result["results"]:
+            raw_content = r.get("raw_content", "")
+            if raw_content:
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "You are a data-cleaning assistant. You receive poorly-formatted web scrapes containing CSS variables, JSON payloads, and navigation junk. Extract ONLY the primary reading material (e.g. an article, job description, landing page copy) and format it into clean Markdown. Do NOT include greetings, code blocks of JSON, or raw CSS."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"RAW SCRAPE:\n{raw_content[:12000]}"
+                    }
+                ]
+                try:
+                    cleaned = await llm_service.chat_completion(
+                        messages=messages,
+                        temperature=0.1,
+                        max_tokens=2000,
+                    )
+                    r["raw_content"] = cleaned
+                except Exception as e:
+                    logger.warning(f"Failed to clean scrape with LLM: {e}")
+
     return result
 
 @app.post("/api/crawl")
