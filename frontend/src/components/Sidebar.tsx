@@ -35,7 +35,7 @@ export default function Sidebar() {
     }, []);
 
     return (
-        <div className="w-64 shrink-0 bg-[#0A0A0B] border-r border-[#1F1F22] h-full flex flex-col hidden md:flex overflow-hidden">
+        <div className="w-64 shrink-0 bg-[#0A0A0B] border-r border-[#1F1F22] h-full flex flex-col overflow-hidden">
             <div className="p-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted font-inter tracking-wide uppercase">
                     Recent Research
@@ -65,8 +65,8 @@ export default function Sidebar() {
                                 key={item.id}
                                 href={`/report/${item.id}`}
                                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
-                                        ? "bg-primary/20 text-primary font-medium"
-                                        : "text-muted hover:bg-white/5 hover:text-foreground"
+                                    ? "bg-primary/20 text-primary font-medium"
+                                    : "text-muted hover:bg-white/5 hover:text-foreground"
                                     }`}
                             >
                                 <svg
