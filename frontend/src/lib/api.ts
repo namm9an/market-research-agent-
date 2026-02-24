@@ -138,16 +138,16 @@ export async function healthCheck() {
 }
 
 /** Extract content from a URL */
-export interface ExtractResponse {
-    url: string;
-    content: string;
-    word_count: number;
+export async function extractUrls(urls: string[]) {
+    return apiFetch<any>("/api/extract", {
+        method: "POST",
+        body: JSON.stringify({ urls }),
+    });
 }
 
-export async function extractUrl(url: string) {
-    return apiFetch<ExtractResponse>("/api/extract", {
+export async function crawlUrl(url: string) {
+    return apiFetch<any>("/api/crawl", {
         method: "POST",
         body: JSON.stringify({ url }),
     });
 }
-

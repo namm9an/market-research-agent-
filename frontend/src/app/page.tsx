@@ -3,26 +3,64 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { startResearch } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+type ActionType = "research" | "crawl" | "extract";
 
 export default function Home() {
-  const [query, setQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [actionType, setActionType] = useState<ActionType>("research");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resultContent, setResultContent] = useState("");
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!query.trim()) return;
+    const payload = inputValue.trim();
+    if (!payload) return;
 
     setLoading(true);
     setError("");
+    setResultContent("");
 
     try {
-      const job = await startResearch(query.trim());
-      router.push(`/report/${job.job_id}`);
+      if (actionType === "research") {
+        const job = await startResearch(payload);
+        router.push(`/report/${job.job_id}`);
+      } else if (actionType === "crawl") {
+        const { crawlUrl } = await import("@/lib/api");
+        const res = await crawlUrl(payload);
+
+        if (res.results && res.results.length > 0) {
+          // Combine content from all crawled sub-pages
+          const combinedContent = res.results
+            .map((r: any) => `## Source: [${r.url}](${r.url})\n\n${r.raw_content}`)
+            .join("\n\n---\n\n");
+          setResultContent(combinedContent || "No content found on this domain.");
+        } else if (res.failed_results && res.failed_results.length > 0) {
+          throw new Error(`Tavily failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
+        } else {
+          throw new Error("No results found. The URL may be protected from scraping.");
+        }
+      } else if (actionType === "extract") {
+        const { extractUrls } = await import("@/lib/api");
+        const res = await extractUrls([payload]);
+
+        if (res.results && res.results.length > 0) {
+          // Extract content from the specific URL
+          setResultContent(`## Source: [${res.results[0].url}](${res.results[0].url})\n\n${res.results[0].raw_content}`);
+        } else if (res.failed_results && res.failed_results.length > 0) {
+          throw new Error(`Tavily failed to extract URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
+        } else {
+          throw new Error("No results found. The URL may be protected from scraping.");
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setLoading(false);
+      setError(err instanceof Error ? err.message : `${actionType} failed`);
+    } finally {
+      if (actionType !== "research") setLoading(false);
     }
   }
 
@@ -62,9 +100,9 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Search form */}
+        {/* Unified Input with Action Selector */}
         <form onSubmit={handleSubmit} className="w-full">
-          <div className="glass-card flex items-center gap-3 p-2 transition-all duration-200">
+          <div className="glass-card flex items-center gap-2 p-2 transition-all duration-200">
             <svg
               className="ml-3 h-5 w-5 shrink-0 text-muted"
               fill="none"
@@ -80,17 +118,41 @@ export default function Home() {
             </svg>
             <input
               type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter a company name — e.g. Zomato, Stripe, AWS…"
-              className="flex-1 bg-transparent py-3 text-lg text-foreground placeholder:text-muted/60 focus:outline-none"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={
+                actionType === "research"
+                  ? "Enter a company name — e.g. Zomato, Stripe, AWS…"
+                  : "Enter a URL — e.g. https://example.com"
+              }
+              className="flex-1 bg-transparent py-3 px-2 text-lg text-foreground placeholder:text-muted/60 focus:outline-none"
               disabled={loading}
               autoFocus
             />
+
+            {/* Action Selector */}
+            <div className="relative flex items-center">
+              <select
+                value={actionType}
+                onChange={(e) => setActionType(e.target.value as ActionType)}
+                className="appearance-none bg-white/5 border border-white/10 rounded-lg py-3 pl-4 pr-10 text-sm font-medium text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50 cursor-pointer"
+                disabled={loading}
+              >
+                <option value="research">Research</option>
+                <option value="crawl">Crawl</option>
+                <option value="extract">Extract</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={loading || !query.trim()}
-              className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition-all duration-150 hover:bg-primary-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={loading || !inputValue.trim()}
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition-all duration-150 hover:bg-primary-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ml-2"
             >
               {loading ? (
                 <>
@@ -99,10 +161,10 @@ export default function Home() {
                     <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
                     <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
                   </span>
-                  Starting…
+                  Processing…
                 </>
               ) : (
-                "Research"
+                "Run"
               )}
             </button>
           </div>
@@ -110,13 +172,35 @@ export default function Home() {
 
         {/* Error */}
         {error && (
-          <div className="glass-card w-full border-danger/30 p-4 text-left text-sm text-danger">
+          <div className="glass-card w-full border-danger/30 p-4 text-left text-sm text-danger mt-4 animate-fade-in">
             <strong>Error:</strong> {error}
           </div>
         )}
 
+        {/* Generic Result Area */}
+        {resultContent && actionType !== "research" && (
+          <div className="glass-card mt-4 w-full animate-fade-in p-6 text-left">
+            <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-4">
+              {actionType === "crawl" ? "Crawl Result" : "Extraction Result"}
+            </h2>
+            <div className="prose prose-sm prose-invert max-w-none break-all">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  img: ({ node, ...props }) => {
+                    if (!props.src || props.src === "") return null;
+                    return <img {...props} />;
+                  },
+                }}
+              >
+                {resultContent}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
+
         {/* Subtle footer info */}
-        <p className="mt-4 text-xs text-muted/40">
+        <p className="mt-8 text-xs text-muted/40">
           Powered by NVIDIA Nemotron Nano on E2E Networks — reports in ~30 seconds
         </p>
       </main>
