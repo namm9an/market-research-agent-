@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { listJobs, type JobKind, type JobListItem } from "@/lib/api";
+import { deleteJob, listJobs, type JobKind, type JobListItem } from "@/lib/api";
 
 interface HistoryItem {
     id: string;
@@ -86,6 +86,7 @@ function mergeHistory(primary: HistoryItem[], fallback: HistoryItem[]): HistoryI
 
 export default function Sidebar() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [deletingIds, setDeletingIds] = useState<string[]>([]);
     const pathname = usePathname();
 
     const loadHistory = useCallback(async () => {
@@ -128,6 +129,30 @@ export default function Sidebar() {
         };
     }, [loadHistory]);
 
+    async function handleDelete(jobId: string, event: MouseEvent<HTMLButtonElement>) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (deletingIds.includes(jobId)) return;
+        setDeletingIds((ids) => [...ids, jobId]);
+
+        try {
+            await deleteJob(jobId);
+
+            setHistory((prev) => {
+                const next = prev.filter((item) => item.id !== jobId);
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+                return next;
+            });
+
+            window.dispatchEvent(new Event("mra_history_updated"));
+        } catch (e) {
+            console.error("Failed to delete history item", e);
+        } finally {
+            setDeletingIds((ids) => ids.filter((id) => id !== jobId));
+        }
+    }
+
     return (
         <div className="w-64 shrink-0 bg-[#0A0A0B] border-r border-[#1F1F22] h-full flex flex-col overflow-hidden">
             <div className="p-4 flex items-center justify-between">
@@ -153,12 +178,13 @@ export default function Sidebar() {
                     </div>
                 ) : (
                     history.map((item) => {
+                        const isDeleting = deletingIds.includes(item.id);
                         const href =
                             item.kind === "research"
                                 ? `/report/${item.id}`
                                 : `/activity/${item.id}`;
                         const isActive = pathname.includes(item.id);
-                        const containerClass = `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
+                        const containerClass = `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
                             ? "bg-primary/20 text-primary font-medium"
                             : "text-muted hover:bg-white/5 hover:text-foreground"
                             }`;
@@ -181,13 +207,29 @@ export default function Sidebar() {
                         );
 
                         return (
-                            <Link
+                            <div
                                 key={item.id}
-                                href={href}
                                 className={containerClass}
                             >
-                                {content}
-                            </Link>
+                                <Link
+                                    href={href}
+                                    className="flex min-w-0 flex-1 items-center gap-3"
+                                >
+                                    {content}
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={(event) => void handleDelete(item.id, event)}
+                                    disabled={isDeleting}
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted/60 transition-colors hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+                                    title="Delete from history"
+                                    aria-label={`Delete ${item.title} from history`}
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 7.5h12m-9.75 0v10.125c0 .621.504 1.125 1.125 1.125h5.25c.621 0 1.125-.504 1.125-1.125V7.5M9.75 7.5V6.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V7.5" />
+                                    </svg>
+                                </button>
+                            </div>
                         );
                     })
                 )}

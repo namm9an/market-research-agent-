@@ -216,6 +216,21 @@ async def list_jobs():
         for job in sorted(jobs.values(), key=lambda j: j.created_at, reverse=True)
     ]
 
+
+@app.delete("/api/jobs/{job_id}")
+async def delete_job(job_id: str):
+    """Delete a job from history."""
+    job = jobs.pop(job_id, None)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    # Best-effort cleanup of persisted report artifact for research jobs.
+    report_file = REPORTS_DIR / f"{job_id}.json"
+    if report_file.exists():
+        report_file.unlink(missing_ok=True)
+
+    return {"success": True, "job_id": job_id}
+
 # --- Crawl & Extract ---
 
 class ExtractRequest(BaseModel):

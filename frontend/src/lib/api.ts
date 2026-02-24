@@ -120,6 +120,13 @@ export async function listJobs() {
     return apiFetch<JobListItem[]>("/api/jobs");
 }
 
+/** Delete a job from history */
+export async function deleteJob(jobId: string) {
+    return apiFetch<{ success: boolean; job_id: string }>(`/api/jobs/${jobId}`, {
+        method: "DELETE",
+    });
+}
+
 /** Ask a follow-up question about a report */
 export async function askQuestion(jobId: string, question: string) {
     return apiFetch<AskResponse>(`/api/research/${jobId}/ask`, {
