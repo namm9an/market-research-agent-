@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { listJobs } from "@/lib/api";
 
 interface HistoryItem {
     id: string;
@@ -10,29 +11,118 @@ interface HistoryItem {
     date: string;
 }
 
+const HISTORY_KEY = "mra_history";
+const MAX_HISTORY_ITEMS = 20;
+
+interface JobHistoryItem {
+    job_id: string;
+    query: string;
+    created_at: string;
+}
+
+function readLocalHistory(): HistoryItem[] {
+    try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        if (!raw) return [];
+
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+
+        const normalized: HistoryItem[] = [];
+        for (const entry of parsed) {
+            if (!entry || typeof entry !== "object") continue;
+            const item = entry as Record<string, unknown>;
+            const id = typeof item.id === "string" ? item.id : "";
+            if (!id) continue;
+
+            normalized.push({
+                id,
+                title:
+                    typeof item.title === "string" && item.title.trim()
+                        ? item.title
+                        : "Untitled research",
+                date:
+                    typeof item.date === "string" && item.date.trim()
+                        ? item.date
+                        : new Date(0).toISOString(),
+            });
+        }
+
+        return normalized.slice(0, MAX_HISTORY_ITEMS);
+    } catch (e) {
+        console.error("Failed to parse local history", e);
+        return [];
+    }
+}
+
+function mapJobsToHistory(jobs: JobHistoryItem[]): HistoryItem[] {
+    return jobs
+        .map((job) => ({
+            id: job.job_id,
+            title: job.query?.trim() || "Untitled research",
+            date: job.created_at || new Date(0).toISOString(),
+        }))
+        .slice(0, MAX_HISTORY_ITEMS);
+}
+
+function mergeHistory(primary: HistoryItem[], fallback: HistoryItem[]): HistoryItem[] {
+    const merged = [...primary, ...fallback];
+    const seen = new Set<string>();
+    const deduped: HistoryItem[] = [];
+
+    for (const item of merged) {
+        if (!item.id || seen.has(item.id)) continue;
+        seen.add(item.id);
+        deduped.push(item);
+        if (deduped.length >= MAX_HISTORY_ITEMS) break;
+    }
+
+    return deduped;
+}
+
 export default function Sidebar() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const pathname = usePathname();
 
-    const loadHistory = () => {
+    const loadHistory = useCallback(async () => {
+        const localHistory = readLocalHistory();
+
         try {
-            const stored = localStorage.getItem("mra_history");
-            if (stored) {
-                setHistory(JSON.parse(stored));
-            }
+            const jobs = await listJobs();
+            const apiHistory = mapJobsToHistory(jobs as JobHistoryItem[]);
+            const merged = mergeHistory(apiHistory, localHistory);
+            setHistory(merged);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
         } catch (e) {
-            console.error("Failed to load history", e);
+            // Keep sidebar functional even if API is temporarily unavailable.
+            setHistory(localHistory);
+            console.error("Failed to load history from API", e);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        loadHistory();
+        const initialLoadTimer = window.setTimeout(() => {
+            void loadHistory();
+        }, 0);
 
-        // Listen to custom event when a new job is created
-        const handleUpdate = () => loadHistory();
+        // Listen for new research submissions from the home page.
+        const handleUpdate = () => {
+            void loadHistory();
+        };
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === HISTORY_KEY) {
+                void loadHistory();
+            }
+        };
+
         window.addEventListener("mra_history_updated", handleUpdate);
-        return () => window.removeEventListener("mra_history_updated", handleUpdate);
-    }, []);
+        window.addEventListener("storage", handleStorage);
+        return () => {
+            window.clearTimeout(initialLoadTimer);
+            window.removeEventListener("mra_history_updated", handleUpdate);
+            window.removeEventListener("storage", handleStorage);
+        };
+    }, [loadHistory]);
 
     return (
         <div className="w-64 shrink-0 bg-[#0A0A0B] border-r border-[#1F1F22] h-full flex flex-col overflow-hidden">

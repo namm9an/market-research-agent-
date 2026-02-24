@@ -32,9 +32,17 @@ export default function Home() {
         // Save to Sidebar History
         try {
           const historyItem = { id: job.job_id, title: payload, date: new Date().toISOString() };
-          const past = JSON.parse(localStorage.getItem("mra_history") || "[]");
-          // Prevent duplicates
-          const filtered = past.filter((item: any) => item.id !== job.job_id).slice(0, 19);
+          const pastRaw: unknown = JSON.parse(localStorage.getItem("mra_history") || "[]");
+          const past = Array.isArray(pastRaw) ? pastRaw : [];
+
+          // Prevent duplicates and ignore malformed entries.
+          const filtered = past
+            .filter((item): item is { id: string; title?: string; date?: string } => {
+              return !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string";
+            })
+            .filter((item) => item.id !== job.job_id)
+            .slice(0, 19);
+
           localStorage.setItem("mra_history", JSON.stringify([historyItem, ...filtered]));
           window.dispatchEvent(new Event("mra_history_updated"));
         } catch (e) {
