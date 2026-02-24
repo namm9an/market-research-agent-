@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -27,7 +28,7 @@ from app.models.schemas import (
     AskRequest,
     AskResponse,
 )
-from app.services import llm_service
+from app.services import llm_service, search_service
 from app.services.research_engine import run_research
 from app.services.pdf_service import generate_pdf
 
@@ -64,6 +65,80 @@ app.add_middleware(
 
 # --- In-memory job store ---
 jobs: dict[str, ResearchJob] = {}
+
+LEADERSHIP_QUERY_RE = re.compile(
+    r"\b(leader|leadership|ceo|cfo|cto|coo|executive|board|founder|president|chair|managing director|vp|svp)\b",
+    flags=re.IGNORECASE,
+)
+REASONING_LEAK_RE = re.compile(
+    r"\b(the user asks|let'?s think|better to answer|given uncertainty|actually i think|not sure\.)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _needs_followup_web_context(question: str) -> bool:
+    """Detect follow-up questions that likely need fresh factual lookup."""
+    q = question.lower()
+    if LEADERSHIP_QUERY_RE.search(q):
+        return True
+    if "who is" in q or "who are" in q or "current" in q or "latest" in q:
+        return True
+    return False
+
+
+def _build_web_context(company: str, question: str) -> str:
+    """Fetch and format compact Tavily context for follow-up factual questions."""
+    query = f"{company} {question} official leadership team executives"
+    result = search_service.search(
+        query=query,
+        topic="news",
+        time_range="year",
+        use_cache=False,
+        max_results=5,
+    )
+
+    lines: list[str] = []
+    if result.get("answer"):
+        lines.append(f"Web summary: {result['answer']}")
+
+    for i, item in enumerate(result.get("results", [])[:5], 1):
+        title = item.get("title", "Untitled")
+        url = item.get("url", "")
+        snippet = (item.get("content") or item.get("raw_content") or "").strip()
+        if len(snippet) > 700:
+            snippet = f"{snippet[:700]}..."
+        lines.append(
+            f"[{i}] {title}\n"
+            f"URL: {url}\n"
+            f"Snippet: {snippet}"
+        )
+
+    return "\n\n".join(lines)
+
+
+def _sanitize_followup_answer(text: str) -> str:
+    """Strip leaked chain-of-thought style reasoning before sending to frontend."""
+    cleaned = text.strip()
+    if not cleaned:
+        return cleaned
+
+    # Remove model reasoning tags if present.
+    cleaned = re.sub(r"(?is)<think>.*?</think>", "", cleaned).strip()
+    cleaned = re.sub(r"(?is)<thinking>.*?</thinking>", "", cleaned).strip()
+    if not cleaned:
+        return ""
+
+    # If the answer clearly contains internal reasoning, remove those lines.
+    if REASONING_LEAK_RE.search(cleaned):
+        kept_lines: list[str] = []
+        for line in cleaned.splitlines():
+            if not REASONING_LEAK_RE.search(line):
+                kept_lines.append(line)
+        candidate = "\n".join(kept_lines).strip()
+        if candidate:
+            cleaned = candidate
+
+    return cleaned
 
 
 # --- Background task runner ---
@@ -322,6 +397,7 @@ async def ask_question(job_id: str, request: AskRequest):
 
     # Build context from the report
     r = job.report
+    utc_today = datetime.utcnow().date().isoformat()
     report_context = (
         f"Company: {job.query}\n"
         f"Overview: {r.company_overview}\n"
@@ -333,6 +409,13 @@ async def ask_question(job_id: str, request: AskRequest):
         f"Key Findings: {'; '.join(r.key_findings)}\n"
     )
 
+    web_context = ""
+    if _needs_followup_web_context(request.question):
+        try:
+            web_context = _build_web_context(job.query, request.question)
+        except Exception as e:
+            logger.warning(f"[{job_id}] Web context lookup failed: {e}")
+
     # Include previous Q&A for continuity
     qa_context = ""
     for qa in job.qa_history:
@@ -342,15 +425,14 @@ async def ask_question(job_id: str, request: AskRequest):
         {
             "role": "system",
             "content": (
-                "You are a strategic market research analyst. Use the research report below "
-                "to answer questions. Ground your responses in the report data, but also:\n"
-                "- Make intelligent inferences and business connections from the data\n"
-                "- Identify sales opportunities, partnership angles, and strategic implications\n"
-                "- Reason about industry dynamics even if not explicitly stated in the report\n"
-                "- When asked about pitching, positioning, or go-to-market, provide actionable advice\n"
-                "Be specific, cite data points from the report, and be direct about what is "
-                "a fact vs. your inference.\n\n"
-                f"REPORT DATA:\n{report_context}"
+                "You are a strategic market research analyst.\n"
+                "Return final answer only. Never reveal hidden reasoning, self-talk, or analysis process.\n"
+                "Use REPORT DATA as primary context. If WEB CONTEXT is present, use it for current factual entities "
+                "(names/titles/dates) and cite source numbers like [1], [2].\n"
+                f"As-of date for your answer: {utc_today} (UTC).\n"
+                "If context is insufficient, say what is missing instead of guessing.\n\n"
+                f"REPORT DATA:\n{report_context}\n\n"
+                f"WEB CONTEXT:\n{web_context if web_context else 'None'}"
             ),
         },
     ]
@@ -364,11 +446,14 @@ async def ask_question(job_id: str, request: AskRequest):
 
     logger.info(f"[{job_id}] Q&A question ({job.qa_remaining} remaining): {request.question[:80]}")
 
-    answer = await llm_service.chat_completion(
+    raw_answer = await llm_service.chat_completion(
         messages=messages,
         temperature=0.2,
         max_tokens=500,
     )
+    answer = _sanitize_followup_answer(raw_answer)
+    if not answer:
+        answer = "I don't have enough reliable context to answer that accurately."
 
     # Track Q&A
     job.qa_history.append({"question": request.question, "answer": answer})
