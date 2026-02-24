@@ -252,6 +252,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
         raise HTTPException(status_code=400, detail=job.error)
 
     job.status = JobStatus.COMPLETED
+    job.operation_result = result
     job.completed_at = datetime.utcnow()
     job.duration_seconds = (job.completed_at - started_at).total_seconds()
     return result
@@ -279,6 +280,7 @@ async def crawl_content(payload: CrawlRequest, request: Request):
         raise HTTPException(status_code=400, detail=job.error)
 
     job.status = JobStatus.COMPLETED
+    job.operation_result = result
     job.completed_at = datetime.utcnow()
     job.duration_seconds = (job.completed_at - started_at).total_seconds()
     return result

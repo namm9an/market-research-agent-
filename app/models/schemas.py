@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -79,6 +79,7 @@ class ResearchJob(BaseModel):
     completed_at: Optional[datetime] = None
     duration_seconds: Optional[float] = None
     report: Optional[ResearchReport] = None
+    operation_result: Optional[dict[str, Any]] = None
     error: Optional[str] = None
     # Follow-up Q&A
     qa_history: list[dict] = Field(default_factory=list)
