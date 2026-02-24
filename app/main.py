@@ -89,19 +89,56 @@ def _needs_followup_web_context(question: str) -> bool:
     return False
 
 
-def _build_web_context(company: str, question: str) -> str:
+def _result_mentions_company(item: dict, company_tokens: list[str]) -> bool:
+    """Basic relevance gate to reduce wrong-company snippets in follow-up context."""
+    if not company_tokens:
+        return True
+
+    haystack = " ".join(
+        [
+            str(item.get("title", "")),
+            str(item.get("url", "")),
+            str(item.get("content", "")),
+            str(item.get("raw_content", "")),
+        ]
+    ).lower()
+
+    for token in company_tokens:
+        # Keep short acronym matching strict (e.g., "amd" as a whole word).
+        if token.isalpha() and len(token) <= 4:
+            if re.search(rf"\b{re.escape(token)}\b", haystack):
+                return True
+        elif token in haystack:
+            return True
+    return False
+
+
+def _build_web_context(company: str, question: str, previous_questions: list[str] | None = None) -> str:
     """Fetch and format compact Tavily context for follow-up factual questions."""
     q = question.lower()
-    search_queries = [
-        f"{company} leadership team executives official",
-        f"{company} CEO CFO executive leadership",
-    ]
+    search_queries = [f"{company} {question}"]
+
+    if previous_questions and (len(question.split()) <= 7 or re.search(r"\b(they|them|their|it|its|those|these)\b", q)):
+        search_queries.insert(0, f"{company} {previous_questions[-1]} {question}")
+
+    if LEADERSHIP_QUERY_RE.search(q):
+        search_queries.extend(
+            [
+                f"{company} leadership team executives official",
+                f"{company} CEO CFO executive leadership",
+            ]
+        )
+
     if "india" in q:
         search_queries.append(f"{company} India leadership country manager general manager")
 
     collected_results: list[dict] = []
-    web_summaries: list[str] = []
+    fallback_results: list[dict] = []
     seen_urls: set[str] = set()
+    company_tokens = [
+        t for t in re.split(r"[^a-zA-Z0-9]+", company.lower())
+        if t and len(t) >= 3
+    ]
 
     for sq in search_queries:
         result = search_service.search(
@@ -110,9 +147,6 @@ def _build_web_context(company: str, question: str) -> str:
             use_cache=False,
             max_results=4,
         )
-        answer = result.get("answer")
-        if isinstance(answer, str) and answer.strip():
-            web_summaries.append(answer.strip())
 
         for item in result.get("results", [])[:4]:
             if not isinstance(item, dict):
@@ -120,11 +154,16 @@ def _build_web_context(company: str, question: str) -> str:
             url = item.get("url", "")
             if isinstance(url, str) and url and url not in seen_urls:
                 seen_urls.add(url)
-                collected_results.append(item)
+                if _result_mentions_company(item, company_tokens):
+                    collected_results.append(item)
+                else:
+                    fallback_results.append(item)
 
     # Fallback to recency-focused search if general web retrieval is sparse.
     if len(collected_results) < 3:
-        fallback_query = f"{company} {question} leadership executives"
+        fallback_query = f"{company} {question}"
+        if LEADERSHIP_QUERY_RE.search(q):
+            fallback_query = f"{fallback_query} leadership executives"
         fallback = search_service.search(
             query=fallback_query,
             topic="news",
@@ -132,20 +171,22 @@ def _build_web_context(company: str, question: str) -> str:
             use_cache=False,
             max_results=5,
         )
-        answer = fallback.get("answer")
-        if isinstance(answer, str) and answer.strip():
-            web_summaries.append(answer.strip())
         for item in fallback.get("results", [])[:5]:
             if not isinstance(item, dict):
                 continue
             url = item.get("url", "")
             if isinstance(url, str) and url and url not in seen_urls:
                 seen_urls.add(url)
-                collected_results.append(item)
+                if _result_mentions_company(item, company_tokens):
+                    collected_results.append(item)
+                else:
+                    fallback_results.append(item)
+
+    # If strict company filtering leaves too little context, allow best-effort fallback.
+    if len(collected_results) < 2 and fallback_results:
+        collected_results.extend(fallback_results[: 2 - len(collected_results)])
 
     lines: list[str] = []
-    if web_summaries:
-        lines.append(f"Web summary: {web_summaries[0]}")
 
     for i, item in enumerate(collected_results[:7], 1):
         title = item.get("title", "Untitled")
@@ -460,18 +501,15 @@ async def ask_question(job_id: str, request: AskRequest):
         f"Key Findings: {'; '.join(r.key_findings)}\n"
     )
 
+    # Always perform a fresh web lookup for each Q&A ask.
+    # This prevents stale/cross-question drift and keeps follow-ups live-grounded.
     web_context = ""
-    needs_web_context = _needs_followup_web_context(request.question)
-    if needs_web_context:
-        try:
-            web_context = _build_web_context(job.query, request.question)
-        except Exception as e:
-            logger.warning(f"[{job_id}] Web context lookup failed: {e}")
-
-    # Include previous Q&A for continuity
-    qa_context = ""
-    for qa in job.qa_history:
-        qa_context += f"Q: {qa['question']}\nA: {qa['answer']}\n\n"
+    is_factual_followup = _needs_followup_web_context(request.question)
+    try:
+        previous_questions = [qa["question"] for qa in job.qa_history[-3:]]
+        web_context = _build_web_context(job.query, request.question, previous_questions=previous_questions)
+    except Exception as e:
+        logger.warning(f"[{job_id}] Web context lookup failed: {e}")
 
     messages = [
         {
@@ -492,14 +530,9 @@ async def ask_question(job_id: str, request: AskRequest):
         },
     ]
 
-    # Add Q&A history. For factual-entity questions, avoid anchoring on prior assistant mistakes.
-    if needs_web_context:
-        for qa in job.qa_history[-4:]:
-            messages.append({"role": "user", "content": qa["question"]})
-    else:
-        for qa in job.qa_history:
-            messages.append({"role": "user", "content": qa["question"]})
-            messages.append({"role": "assistant", "content": qa["answer"]})
+    # Add limited Q&A history as user-questions only to avoid propagating prior wrong answers.
+    for qa in job.qa_history[-6:]:
+        messages.append({"role": "user", "content": qa["question"]})
 
     messages.append({"role": "user", "content": request.question})
 
@@ -511,7 +544,7 @@ async def ask_question(job_id: str, request: AskRequest):
         max_tokens=500,
     )
     answer = _sanitize_followup_answer(raw_answer)
-    if needs_web_context:
+    if is_factual_followup:
         if not web_context.strip():
             answer = (
                 f"I couldn't fetch reliable live web context for {job.query} right now. "
