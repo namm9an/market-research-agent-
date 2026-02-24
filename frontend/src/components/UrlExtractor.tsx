@@ -3,7 +3,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { extractUrl } from "@/lib/api";
+import { extractUrls } from "@/lib/api";
 
 export default function UrlExtractor() {
     const [url, setUrl] = useState("");
@@ -22,9 +22,15 @@ export default function UrlExtractor() {
         setContent("");
 
         try {
-            const res = await extractUrl(trimmed);
-            setContent(res.content);
-            setWordCount(res.word_count);
+            const res = await extractUrls([trimmed]);
+            if (res.results && res.results.length > 0) {
+                setContent(res.results[0].raw_content);
+                setWordCount(res.results[0].raw_content.split(/\s+/).length);
+            } else if (res.failed_results && res.failed_results.length > 0) {
+                throw new Error(`Extraction failed: ${res.failed_results[0].error}`);
+            } else {
+                throw new Error("No content extracted");
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Extraction failed");
         } finally {
