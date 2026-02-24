@@ -74,6 +74,7 @@ REASONING_LEAK_RE = re.compile(
     r"\b(the user asks|let'?s think|better to answer|given uncertainty|actually i think|not sure\.)\b",
     flags=re.IGNORECASE,
 )
+CITATION_RE = re.compile(r"\[\d+\]")
 
 
 def _needs_followup_web_context(question: str) -> bool:
@@ -184,6 +185,11 @@ def _sanitize_followup_answer(text: str) -> str:
             cleaned = candidate
 
     return cleaned
+
+
+def _has_citations(text: str) -> bool:
+    """Check whether answer includes source citation markers like [1], [2]."""
+    return bool(CITATION_RE.search(text or ""))
 
 
 # --- Background task runner ---
@@ -472,6 +478,8 @@ async def ask_question(job_id: str, request: AskRequest):
             "role": "system",
             "content": (
                 "You are a strategic market research analyst.\n"
+                f"Target company for this question: {job.query}.\n"
+                "Do not switch to another company unless explicitly asked by the user.\n"
                 "Return final answer only. Never reveal hidden reasoning, self-talk, or analysis process.\n"
                 "Use REPORT DATA as primary context for analysis questions. "
                 "For people/title/current-entity questions, prioritize WEB CONTEXT and cite source numbers like [1], [2].\n"
@@ -503,7 +511,50 @@ async def ask_question(job_id: str, request: AskRequest):
         max_tokens=500,
     )
     answer = _sanitize_followup_answer(raw_answer)
-    if not answer:
+    if needs_web_context:
+        if not web_context.strip():
+            answer = (
+                f"I couldn't fetch reliable live web context for {job.query} right now. "
+                "Please retry in a minute."
+            )
+        elif not _has_citations(answer):
+            # Second pass: enforce strict web-grounded answer format with citations.
+            strict_messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer using ONLY WEB CONTEXT. Do not use prior memory.\n"
+                        f"Target company: {job.query}\n"
+                        f"As-of date: {utc_today} (UTC)\n"
+                        "Output requirements:\n"
+                        "- Provide concise bullet points with names and titles.\n"
+                        "- Every factual bullet must end with citation markers like [1], [2].\n"
+                        "- If reliable names are not present, say so clearly.\n"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Question: {request.question}\n\n"
+                        f"WEB CONTEXT:\n{web_context}"
+                    ),
+                },
+            ]
+            strict_raw = await llm_service.chat_completion(
+                messages=strict_messages,
+                temperature=0.1,
+                max_tokens=400,
+            )
+            strict_answer = _sanitize_followup_answer(strict_raw)
+            if strict_answer and _has_citations(strict_answer):
+                answer = strict_answer
+            else:
+                answer = (
+                    "I couldn't verify leadership names reliably from live sources for this question. "
+                    "Please ask with the exact company and geography (for example: "
+                    f"'{job.query} leadership in India') and retry."
+                )
+    elif not answer:
         answer = "I don't have enough reliable context to answer that accurately."
 
     # Track Q&A
