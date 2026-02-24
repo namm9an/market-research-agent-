@@ -6,9 +6,15 @@ import logging
 from datetime import datetime
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
+from starlette.requests import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import MODEL_NAME, TAVILY_API_KEY, REPORTS_DIR
 from app.models.schemas import (
@@ -32,12 +38,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# --- Rate Limiter ---
+limiter = Limiter(key_func=get_remote_address)
+
 # --- App ---
 app = FastAPI(
     title="Market Research AI Agent",
     description="AI-powered market research using NVIDIA Nemotron Nano on E2E Networks",
     version="0.1.0",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # --- CORS ---
 app.add_middleware(
@@ -85,8 +98,10 @@ async def health_check():
 
 
 @app.post("/api/research", response_model=ResearchStartResponse)
+@limiter.limit("5/minute")
 async def start_research(
-    request: ResearchRequest,
+    payload: ResearchRequest,
+    request: Request,
     background_tasks: BackgroundTasks,
 ):
     """Start a new market research job.
@@ -96,12 +111,12 @@ async def start_research(
     """
     # Create job
     job = ResearchJob(
-        query=request.query,
-        type=request.type,
+        query=payload.query,
+        type=payload.type,
     )
     jobs[job.job_id] = job
 
-    logger.info(f"New research job: {job.job_id} for '{request.query}'")
+    logger.info(f"New research job: {job.job_id} for '{payload.query}'")
 
     # Start background task
     background_tasks.add_task(_run_research_task, job.job_id)
@@ -202,22 +217,34 @@ async def list_jobs():
 # --- Crawl & Extract ---
 
 class ExtractRequest(BaseModel):
-    url: str = Field(..., min_length=5, description="URL to crawl and extract content from")
+    urls: list[str] = Field(..., description="List of URLs to extract content from")
+
+class CrawlRequest(BaseModel):
+    url: str = Field(..., min_length=5, description="URL to crawl")
 
 @app.post("/api/extract")
-async def extract_content(request: ExtractRequest):
-    """Crawl a URL and extract its content using Tavily."""
-    from app.services.search_service import extract_url
+@limiter.limit("10/minute")
+async def extract_content(payload: ExtractRequest, request: Request):
+    """Extract content from URLs using Tavily extract API."""
+    from app.services.search_service import extract_urls
 
-    result = extract_url(request.url)
+    result = extract_urls(payload.urls)
     if result.get("failed"):
         raise HTTPException(status_code=400, detail=result.get("error", "Extraction failed"))
 
-    return {
-        "url": result["url"],
-        "content": result["raw_content"],
-        "word_count": len(result["raw_content"].split()),
-    }
+    return result
+
+@app.post("/api/crawl")
+@limiter.limit("10/minute")
+async def crawl_content(payload: CrawlRequest, request: Request):
+    """Crawl a URL using Tavily crawl API."""
+    from app.services.search_service import crawl_url
+
+    result = crawl_url(payload.url)
+    if result.get("failed"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Crawl failed"))
+
+    return result
 
 
 # --- Follow-up Q&A ---

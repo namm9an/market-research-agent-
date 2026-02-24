@@ -5,25 +5,31 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from tavily import TavilyClient
+from httpx import HTTPStatusError
+from tavily import TavilyClient, MissingAPIKeyError
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from app.config import TAVILY_API_KEY, MAX_SEARCH_RESULTS, CACHE_DIR
 
 logger = logging.getLogger(__name__)
 
 # Initialize Tavily client
-_client: TavilyClient | None = None
+_tavily_client: TavilyClient | None = None
+
+try:
+    _tavily_client = TavilyClient(api_key=TAVILY_API_KEY) if TAVILY_API_KEY else None
+except MissingAPIKeyError:
+    logger.warning("TAVILY_API_KEY not found. Search functionality will be disabled.")
+    _tavily_client = None
 
 
 def _get_client() -> TavilyClient:
-    """Lazy-init Tavily client."""
-    global _client
-    if _client is None:
-        if not TAVILY_API_KEY:
-            raise ValueError("TAVILY_API_KEY not set in environment")
-        _client = TavilyClient(api_key=TAVILY_API_KEY)
-    return _client
+    """Returns the initialized Tavily client."""
+    if _tavily_client is None:
+        raise ValueError("TAVILY_API_KEY not set or Tavily client failed to initialize.")
+    return _tavily_client
 
 
 def _cache_key(query: str, topic: str) -> str:
@@ -206,30 +212,37 @@ def format_search_context(search_results: dict) -> str:
     return context
 
 
-def extract_url(url: str) -> dict:
-    """Extract content from a URL using Tavily's extract API.
-
-    Args:
-        url: The URL to crawl and extract content from.
-
-    Returns:
-        Dict with 'url', 'raw_content', and metadata.
-    """
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((Exception, HTTPStatusError)),
+    reraise=True
+)
+def extract_urls(urls: list[str]) -> dict:
+    """Extract content directly from a list of URLs using the Tavily extract API."""
     client = _get_client()
-    logger.info(f"Tavily extract: url='{url}'")
-
+    logger.info(f"Tavily extract: urls={urls}")
     try:
-        response = client.extract(urls=[url])
-        results = response.get("results", [])
-        if results:
-            result = results[0]
-            return {
-                "url": result.get("url", url),
-                "raw_content": result.get("raw_content", ""),
-                "failed": False,
-            }
-        return {"url": url, "raw_content": "", "failed": True, "error": "No content extracted"}
+        response = client.extract(urls=urls)
+        return response
     except Exception as e:
-        logger.error(f"Tavily extract failed for {url}: {e}")
-        return {"url": url, "raw_content": "", "failed": True, "error": str(e)}
+        logger.error(f"Failed to extract URLs {urls}: {e}")
+        return {"failed": True, "error": str(e)}
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((Exception, HTTPStatusError)),
+    reraise=True
+)
+def crawl_url(url: str, extract_depth: str = "advanced") -> dict:
+    """Crawl a URL using the Tavily crawl API."""
+    client = _get_client()
+    logger.info(f"Tavily crawl: url='{url}' depth='{extract_depth}'")
+    try:
+        response = client.crawl(url=url, extract_depth=extract_depth)
+        return response
+    except Exception as e:
+        logger.error(f"Failed to crawl URL {url}: {e}")
+        return {"failed": True, "error": str(e)}
 
