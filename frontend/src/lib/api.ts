@@ -1,5 +1,5 @@
-// Typed API client for the Market Research Agent backend
-
+// Default to relative path for current domain when deployed,
+// or fallback to localhost backend when running locally
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 // ── Types ──────────────────────────────────────────────
@@ -11,6 +11,8 @@ export type JobStatus =
     | "compiling"
     | "completed"
     | "failed";
+
+export type JobKind = "research" | "crawl" | "extract";
 
 export interface Source {
     url: string;
@@ -41,6 +43,7 @@ export interface ResearchReport {
 
 export interface ResearchJob {
     job_id: string;
+    job_kind: JobKind;
     status: JobStatus;
     query: string;
     type: string;
@@ -48,9 +51,19 @@ export interface ResearchJob {
     completed_at: string | null;
     duration_seconds: number | null;
     report: ResearchReport | null;
+    operation_result: Record<string, unknown> | null;
     error: string | null;
     qa_history: { question: string; answer: string }[];
     qa_remaining: number;
+}
+
+export interface JobListItem {
+    job_id: string;
+    job_kind: JobKind;
+    query: string;
+    status: JobStatus;
+    created_at: string;
+    duration_seconds: number | null;
 }
 
 export interface AskResponse {
@@ -104,7 +117,7 @@ export async function getJob(jobId: string) {
 
 /** List all jobs */
 export async function listJobs() {
-    return apiFetch<ResearchJob[]>("/api/jobs");
+    return apiFetch<JobListItem[]>("/api/jobs");
 }
 
 /** Ask a follow-up question about a report */

@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { listJobs } from "@/lib/api";
-
-type JobKind = "research" | "crawl" | "extract";
+import { listJobs, type JobKind, type JobListItem } from "@/lib/api";
 
 interface HistoryItem {
     id: string;
@@ -16,13 +14,6 @@ interface HistoryItem {
 
 const HISTORY_KEY = "mra_history";
 const MAX_HISTORY_ITEMS = 20;
-
-interface JobHistoryItem {
-    job_id: string;
-    query: string;
-    created_at: string;
-    job_kind?: string;
-}
 
 function parseJobKind(value: unknown): JobKind {
     if (value === "crawl" || value === "extract" || value === "research") {
@@ -67,7 +58,7 @@ function readLocalHistory(): HistoryItem[] {
     }
 }
 
-function mapJobsToHistory(jobs: JobHistoryItem[]): HistoryItem[] {
+function mapJobsToHistory(jobs: JobListItem[]): HistoryItem[] {
     return jobs
         .map((job) => ({
             id: job.job_id,
@@ -102,7 +93,7 @@ export default function Sidebar() {
 
         try {
             const jobs = await listJobs();
-            const apiHistory = mapJobsToHistory(jobs as JobHistoryItem[]);
+            const apiHistory = mapJobsToHistory(jobs);
             const merged = mergeHistory(apiHistory, localHistory);
             setHistory(merged);
             localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
@@ -162,8 +153,11 @@ export default function Sidebar() {
                     </div>
                 ) : (
                     history.map((item) => {
-                        const isResearchItem = item.kind === "research";
-                        const isActive = isResearchItem && pathname.includes(item.id);
+                        const href =
+                            item.kind === "research"
+                                ? `/report/${item.id}`
+                                : `/activity/${item.id}`;
+                        const isActive = pathname.includes(item.id);
                         const containerClass = `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
                             ? "bg-primary/20 text-primary font-medium"
                             : "text-muted hover:bg-white/5 hover:text-foreground"
@@ -186,25 +180,14 @@ export default function Sidebar() {
                             </>
                         );
 
-                        if (isResearchItem) {
-                            return (
-                                <Link
-                                    key={item.id}
-                                    href={`/report/${item.id}`}
-                                    className={containerClass}
-                                >
-                                    {content}
-                                </Link>
-                            );
-                        }
-
                         return (
-                            <div
+                            <Link
                                 key={item.id}
+                                href={href}
                                 className={containerClass}
                             >
                                 {content}
-                            </div>
+                            </Link>
                         );
                     })
                 )}
