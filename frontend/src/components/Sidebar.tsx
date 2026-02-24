@@ -5,10 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { listJobs } from "@/lib/api";
 
+type JobKind = "research" | "crawl" | "extract";
+
 interface HistoryItem {
     id: string;
     title: string;
     date: string;
+    kind: JobKind;
 }
 
 const HISTORY_KEY = "mra_history";
@@ -18,6 +21,14 @@ interface JobHistoryItem {
     job_id: string;
     query: string;
     created_at: string;
+    job_kind?: string;
+}
+
+function parseJobKind(value: unknown): JobKind {
+    if (value === "crawl" || value === "extract" || value === "research") {
+        return value;
+    }
+    return "research";
 }
 
 function readLocalHistory(): HistoryItem[] {
@@ -45,6 +56,7 @@ function readLocalHistory(): HistoryItem[] {
                     typeof item.date === "string" && item.date.trim()
                         ? item.date
                         : new Date(0).toISOString(),
+                kind: parseJobKind(item.kind),
             });
         }
 
@@ -61,6 +73,7 @@ function mapJobsToHistory(jobs: JobHistoryItem[]): HistoryItem[] {
             id: job.job_id,
             title: job.query?.trim() || "Untitled research",
             date: job.created_at || new Date(0).toISOString(),
+            kind: parseJobKind(job.job_kind),
         }))
         .slice(0, MAX_HISTORY_ITEMS);
 }
@@ -149,16 +162,14 @@ export default function Sidebar() {
                     </div>
                 ) : (
                     history.map((item) => {
-                        const isActive = pathname.includes(item.id);
-                        return (
-                            <Link
-                                key={item.id}
-                                href={`/report/${item.id}`}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
-                                    ? "bg-primary/20 text-primary font-medium"
-                                    : "text-muted hover:bg-white/5 hover:text-foreground"
-                                    }`}
-                            >
+                        const isResearchItem = item.kind === "research";
+                        const isActive = isResearchItem && pathname.includes(item.id);
+                        const containerClass = `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 group ${isActive
+                            ? "bg-primary/20 text-primary font-medium"
+                            : "text-muted hover:bg-white/5 hover:text-foreground"
+                            }`;
+                        const content = (
+                            <>
                                 <svg
                                     className={`h-4 w-4 shrink-0 ${isActive ? "text-primary/70" : "text-muted/50 group-hover:text-muted"}`}
                                     fill="none"
@@ -169,7 +180,31 @@ export default function Sidebar() {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                 </svg>
                                 <span className="truncate flex-1">{item.title}</span>
-                            </Link>
+                                <span className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted/70">
+                                    {item.kind}
+                                </span>
+                            </>
+                        );
+
+                        if (isResearchItem) {
+                            return (
+                                <Link
+                                    key={item.id}
+                                    href={`/report/${item.id}`}
+                                    className={containerClass}
+                                >
+                                    {content}
+                                </Link>
+                            );
+                        }
+
+                        return (
+                            <div
+                                key={item.id}
+                                className={containerClass}
+                            >
+                                {content}
+                            </div>
                         );
                     })
                 )}

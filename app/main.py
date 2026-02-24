@@ -23,6 +23,7 @@ from app.models.schemas import (
     ResearchStartResponse,
     HealthResponse,
     JobStatus,
+    JobKind,
     AskRequest,
     AskResponse,
 )
@@ -206,6 +207,7 @@ async def list_jobs():
     return [
         {
             "job_id": job.job_id,
+            "job_kind": job.job_kind,
             "query": job.query,
             "status": job.status,
             "created_at": job.created_at,
@@ -228,11 +230,30 @@ async def extract_content(payload: ExtractRequest, request: Request):
     """Extract content from URLs using Tavily extract API."""
     from app.services.search_service import extract_urls
 
+    if not payload.urls:
+        raise HTTPException(status_code=400, detail="At least one URL is required")
+
+    started_at = datetime.utcnow()
+    query_label = payload.urls[0] if len(payload.urls) == 1 else f"{payload.urls[0]} (+{len(payload.urls) - 1} more)"
+    job = ResearchJob(
+        query=query_label,
+        job_kind=JobKind.EXTRACT,
+        status=JobStatus.SEARCHING,
+    )
+    jobs[job.job_id] = job
+
     # We use extract_depth="advanced" to force Tavily to render JavaScript pages
     result = extract_urls(payload.urls)
     if result.get("failed"):
-        raise HTTPException(status_code=400, detail=result.get("error", "Extraction failed"))
+        job.status = JobStatus.FAILED
+        job.error = result.get("error", "Extraction failed")
+        job.completed_at = datetime.utcnow()
+        job.duration_seconds = (job.completed_at - started_at).total_seconds()
+        raise HTTPException(status_code=400, detail=job.error)
 
+    job.status = JobStatus.COMPLETED
+    job.completed_at = datetime.utcnow()
+    job.duration_seconds = (job.completed_at - started_at).total_seconds()
     return result
 
 @app.post("/api/crawl")
@@ -241,10 +262,25 @@ async def crawl_content(payload: CrawlRequest, request: Request):
     """Crawl a URL using Tavily crawl API."""
     from app.services.search_service import crawl_url
 
+    started_at = datetime.utcnow()
+    job = ResearchJob(
+        query=payload.url,
+        job_kind=JobKind.CRAWL,
+        status=JobStatus.SEARCHING,
+    )
+    jobs[job.job_id] = job
+
     result = crawl_url(payload.url)
     if result.get("failed"):
-        raise HTTPException(status_code=400, detail=result.get("error", "Crawl failed"))
+        job.status = JobStatus.FAILED
+        job.error = result.get("error", "Crawl failed")
+        job.completed_at = datetime.utcnow()
+        job.duration_seconds = (job.completed_at - started_at).total_seconds()
+        raise HTTPException(status_code=400, detail=job.error)
 
+    job.status = JobStatus.COMPLETED
+    job.completed_at = datetime.utcnow()
+    job.duration_seconds = (job.completed_at - started_at).total_seconds()
     return result
 
 

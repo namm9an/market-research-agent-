@@ -24,6 +24,12 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+class JobKind(str, Enum):
+    RESEARCH = "research"
+    CRAWL = "crawl"
+    EXTRACT = "extract"
+
+
 # --- Request Models ---
 
 class ResearchRequest(BaseModel):
@@ -65,6 +71,7 @@ class ResearchReport(BaseModel):
 
 class ResearchJob(BaseModel):
     job_id: str = Field(default_factory=lambda: str(uuid4()))
+    job_kind: JobKind = JobKind.RESEARCH
     status: JobStatus = JobStatus.QUEUED
     query: str = ""
     type: ResearchType = ResearchType.COMPANY

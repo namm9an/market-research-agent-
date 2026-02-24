@@ -60,6 +60,7 @@ export default function Home() {
             .map((r: any) => `## Source: [${r.url}](${r.url})\n\n${r.raw_content}`)
             .join("\n\n---\n\n");
           setResultContent(combinedContent || "No content found on this domain.");
+          window.dispatchEvent(new Event("mra_history_updated"));
         } else if (res.failed_results && res.failed_results.length > 0) {
           throw new Error(`Tavily failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
         } else {
@@ -72,6 +73,7 @@ export default function Home() {
         if (res.results && res.results.length > 0) {
           // Extract content from the specific URL
           setResultContent(`## Source: [${res.results[0].url}](${res.results[0].url})\n\n${res.results[0].raw_content}`);
+          window.dispatchEvent(new Event("mra_history_updated"));
         } else if (res.failed_results && res.failed_results.length > 0) {
           throw new Error(`Tavily failed to extract URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
         } else {
