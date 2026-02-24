@@ -240,18 +240,18 @@ async def extract_content(payload: ExtractRequest, request: Request):
                 messages = [
                     {
                         "role": "system",
-                        "content": "You are a data-cleaning assistant. You receive poorly-formatted web scrapes containing CSS variables, JSON payloads, and navigation junk. Extract ONLY the primary reading material (e.g. an article, job description, landing page copy) and format it into clean Markdown. Do NOT include greetings, code blocks of JSON, or raw CSS."
+                        "content": "You are a data-cleaning assistant. You receive poorly-formatted web scrapes containing CSS variables, JSON payloads, and navigation menus. Your only job is to REWRITE THE ENTIRE TEXTUAL CONTENT of the page into clean, readable Markdown layout. DO NOT SUMMARIZE. DO NOT SHORTEN. Preserve all headings, paragraphs, and lists. Strip out the code blocks, CSS, and JSON data."
                     },
                     {
                         "role": "user",
-                        "content": f"RAW SCRAPE:\n{raw_content[:12000]}"
+                        "content": f"RAW SCRAPE:\n{raw_content[:20000]}"
                     }
                 ]
                 try:
                     cleaned = await llm_service.chat_completion(
                         messages=messages,
                         temperature=0.1,
-                        max_tokens=2000,
+                        max_tokens=4000,
                     )
                     r["raw_content"] = cleaned
                 except Exception as e:
