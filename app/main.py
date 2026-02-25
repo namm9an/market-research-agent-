@@ -594,7 +594,97 @@ async def export_research(job_id: str, format: str = "md"):
 
     md += f"## Company Overview\n\n{r.company_overview}\n\n"
 
-    md += f"## SWOT Analysis\n\n"
+    # Financials
+    fin = getattr(r, "financials", None)
+    if fin:
+        md += f"## Core Business & Financials\n\n"
+        md += f"**Core Business:** {fin.core_business_summary}\n\n"
+        md += f"- **Market Cap:** {fin.market_cap}\n"
+        md += f"- **Funding Stage:** {fin.funding_stage}\n"
+        if fin.revenue_history:
+            md += f"\n**Revenue History:**\n"
+            for rev in fin.revenue_history:
+                md += f"- {rev.year}: {rev.amount}\n"
+        md += "\n"
+
+    md += f"\n## Leader Discovery\n\n"
+    leaders = getattr(r, "leaders", []) or []
+    if leaders:
+        for leader in leaders:
+            confidence = getattr(leader, "confidence", "medium")
+            function = getattr(leader, "function", "")
+            source_url = getattr(leader, "source_url", "")
+            evidence = getattr(leader, "evidence", "")
+            md += f"- **{leader.name}** — {leader.title}"
+            if function:
+                md += f" ({function})"
+            md += f" | confidence: {confidence}\n"
+            if source_url:
+                md += f"  - Source: {source_url}\n"
+            if evidence:
+                md += f"  - Evidence: {evidence}\n"
+    else:
+        md += "- No reliable leaders extracted from available context.\n"
+
+    icp_fit = getattr(r, "icp_fit", None)
+    md += f"\n## ICP Fit (E2E Networks)\n\n"
+    if icp_fit:
+        md += f"- **Fit Score:** {icp_fit.fit_score}/100\n"
+        md += f"- **Fit Tier:** {icp_fit.fit_tier}\n"
+        if icp_fit.summary:
+            md += f"- **Summary:** {icp_fit.summary}\n"
+        if icp_fit.reasons:
+            md += "\n### Fit Reasons\n"
+            for reason in icp_fit.reasons:
+                md += f"- {reason}\n"
+        if icp_fit.recommended_pitch_angles:
+            md += "\n### Recommended Pitch Angles\n"
+            for angle in icp_fit.recommended_pitch_angles:
+                md += f"- {angle}\n"
+        if icp_fit.concerns:
+            md += "\n### Concerns / Mitigations\n"
+            for concern in icp_fit.concerns:
+                md += f"- {concern}\n"
+
+    # Deep Funding Intelligence
+    fund = getattr(r, "funding_intelligence", None)
+    if fund:
+        md += "\n## Capital Allocation & GPU Spending Intent\n\n"
+        md += f"**Compute Lead Status:** {fund.e2e_compute_lead_status.upper()}\n\n"
+        md += f"**Analysis of IT/Compute Spend:**\n{fund.capital_allocation_purpose}\n\n"
+        md += f"> {fund.compute_spending_evidence}\n\n"
+        
+        if fund.investor_types:
+            md += "**Investor Profile:** " + ", ".join(fund.investor_types) + "\n\n"
+
+        if fund.funding_timeline:
+            md += "**Major Funding Rounds:**\n"
+            for round_data in fund.funding_timeline:
+                inv_text = ", ".join(round_data.investors) if round_data.investors else "Unknown Investors"
+                md += f"- {round_data.date_or_round}: {round_data.amount} ({inv_text})\n"
+            md += "\n"
+            md += "\n### Recommended Pitch Angles\n"
+            for angle in icp_fit.recommended_pitch_angles:
+                md += f"- {angle}\n"
+        if icp_fit.concerns:
+            md += "\n### Concerns / Risks\n"
+            for concern in icp_fit.concerns:
+                md += f"- {concern}\n"
+    else:
+        md += "- ICP fit assessment unavailable.\n"
+
+    md += f"\n## Market Trends\n\n"
+    for trend in r.trends:
+        md += f"### {trend.title} ({trend.relevance})\n"
+        md += f"{trend.description}\n\n"
+
+    md += f"## Competitive Landscape\n\n{r.competitive_landscape}\n\n"
+
+    md += f"## Key Findings\n\n"
+    for i, finding in enumerate(r.key_findings, 1):
+        md += f"{i}. {finding}\n"
+
+    md += f"\n## SWOT Analysis\n\n"
     md += f"### Strengths\n"
     for s in r.swot.strengths:
         md += f"- {s}\n"
