@@ -317,7 +317,7 @@ export default function Home() {
         )}
 
         {/* Subtle footer info */}
-        <p className="mt-8 text-xs text-muted/40">
+        <p className="mt-8 text-xs text-muted/40 font-mono">
           Powered by NVIDIA Nemotron Nano on E2E Networks — reports in ~30 seconds
         </p>
       </main>
