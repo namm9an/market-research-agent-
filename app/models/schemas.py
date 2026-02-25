@@ -107,6 +107,8 @@ class ResearchReport(BaseModel):
     trends: list[Trend] = Field(default_factory=list)
     competitive_landscape: str = ""
     key_findings: list[str] = Field(default_factory=list)
+    leaders: list[LeaderProfile] = Field(default_factory=list)
+    icp_fit: ICPFitAssessment = Field(default_factory=ICPFitAssessment)
     sources: list[Source] = Field(default_factory=list)
 
 
