@@ -262,8 +262,9 @@ export default function Home() {
 
         {/* Error */}
         {error && (
-          <div className="glass-card w-full border-danger/30 p-4 text-left text-sm text-danger mt-4 animate-fade-in">
-            <strong>Error:</strong> {error}
+          <div className="glass-card w-full border-danger/30 p-4 text-left text-sm text-danger mt-4 animate-fade-in flex items-center justify-between">
+            <span><strong>Error:</strong> {error}</span>
+            <button onClick={() => setError("")} className="text-xs underline hover:text-white">Dismiss</button>
           </div>
         )}
 
