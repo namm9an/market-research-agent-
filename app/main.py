@@ -906,7 +906,7 @@ async def crawl_content(payload: CrawlRequest, request: Request):
     output_payload = {"structured_results": structured_results}
 
     job.status = JobStatus.COMPLETED
-    job.operation_result = result
+    job.operation_result = output_payload
     job.completed_at = datetime.utcnow()
     job.duration_seconds = (job.completed_at - started_at).total_seconds()
     return result
