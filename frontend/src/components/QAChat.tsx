@@ -52,7 +52,7 @@ export default function QAChat({ jobId, history, remaining }: QAChatProps) {
             <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Follow-up Questions</h2>
                 <span className="text-xs text-muted">
-                    {localRemaining} / 10 remaining
+                    {localRemaining} / 50 remaining
                 </span>
             </div>
 
