@@ -314,4 +314,3 @@ def crawl_url(url: str, extract_depth: str = "advanced") -> dict:
     except Exception as e:
         logger.error(f"Failed to crawl URL {url}: {e}")
         return {"failed": True, "error": str(e)}
-
