@@ -203,26 +203,62 @@ export default function Home() {
               </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !inputValue.trim()}
-              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition-all duration-150 hover:bg-primary-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ml-2"
-            >
-              {loading ? (
-                <>
-                  <span className="flex gap-1">
-                    <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
-                    <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
-                    <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
-                  </span>
-                  Processing…
-                </>
-              ) : (
-                "Run"
-              )}
-            </button>
-          </div>
-        </form>
+            {/* Advanced Options Toggle */}
+            {actionType === "search" && (
+              <div className="w-full mt-4 flex flex-col items-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-white transition-colors"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  Advanced Options
+                  {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+
+                {/* Advanced Drawer */}
+                {showAdvanced && (
+                  <div className="w-full mt-3 glass-card p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left animate-fade-in border border-white/10">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted uppercase tracking-wider">Search Topic</label>
+                      <select
+                        value={searchTopic}
+                        onChange={(e) => setSearchTopic(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-sm focus:border-primary focus:outline-none font-sans"
+                      >
+                        <option value="general">General Web</option>
+                        <option value="news">News Articles</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted uppercase tracking-wider">Search Depth</label>
+                      <select
+                        value={searchDepth}
+                        onChange={(e) => setSearchDepth(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-sm focus:border-primary focus:outline-none font-sans"
+                      >
+                        <option value="basic">Basic (Faster)</option>
+                        <option value="advanced">Advanced (Deeper)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted uppercase tracking-wider">Recency (Days)</label>
+                      <input
+                        type="number"
+                        min="1" max="365"
+                        value={searchDays}
+                        onChange={(e) => setSearchDays(Number(e.target.value) || 30)}
+                        className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-sm focus:border-primary focus:outline-none font-sans"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </form>
+        </div>
 
         {/* Error */}
         {error && (
