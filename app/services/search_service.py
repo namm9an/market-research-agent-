@@ -125,7 +125,7 @@ def search_company(company_name: str) -> dict:
     """Run all strategic queries for a company and return combined results.
 
     Returns:
-        Dict with keys: 'overview', 'news', 'financial', 'competitors',
+        Dict with keys: 'overview', 'news', 'financial', 'competitors', 'leadership',
         each containing Tavily search results.
     """
     logger.info(f"Starting comprehensive search for: {company_name}")
