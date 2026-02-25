@@ -744,7 +744,14 @@ async def delete_job(job_id: str):
 
     return {"success": True, "job_id": job_id}
 
-# --- Crawl & Extract ---
+# --- Search, Crawl & Extract ---
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., min_length=1, description="The search query")
+    topic: str = Field("general", description="The category of the search (e.g., 'general', 'news')")
+    search_depth: str = Field("basic", description="The depth of the search ('basic' or 'advanced')")
+    max_results: int = Field(10, ge=1, le=20, description="Max search results to return")
+    days: int = Field(30, ge=1, le=365, description="Number of days back to search (for news)")
 
 class ExtractRequest(BaseModel):
     urls: list[str] = Field(..., description="List of URLs to extract content from")
