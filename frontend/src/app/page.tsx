@@ -90,12 +90,10 @@ export default function Home() {
           throw new Error("No results found. The URL may be protected from scraping.");
         }
       } else if (actionType === "extract") {
-        const { extractUrls } = await import("@/lib/api");
-        const res = await extractUrls([payload]);
-
-        if (res.results && res.results.length > 0) {
-          // Extract content from the specific URL
-          setResultContent(`## Source: [${res.results[0].url}](${res.results[0].url})\n\n${res.results[0].raw_content}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await extractUrls([payload]) as any;
+        if (res.structured_results && res.structured_results.length > 0) {
+          setProfiles(res.structured_results);
           window.dispatchEvent(new Event("mra_history_updated"));
         } else if (res.failed_results && res.failed_results.length > 0) {
           throw new Error(`Tavily failed to extract URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
