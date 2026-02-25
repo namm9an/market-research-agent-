@@ -58,6 +58,7 @@ def _save_cache(key: str, data: dict) -> None:
 def search(
     query: str,
     topic: str = "general",
+    search_depth: str = "advanced",
     max_results: int | None = None,
     time_range: str | None = None,
     use_cache: bool = True,
