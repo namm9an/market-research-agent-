@@ -180,6 +180,13 @@ export default function Home() {
                 placeholder={placeholder}
                 className="flex-1 bg-transparent py-4 px-2 text-lg text-foreground placeholder:text-muted/50 focus:outline-none"
                 disabled={loading}
+                autoFocus
+              />
+
+              <button
+                type="submit"
+                disabled={loading || !inputValue.trim()}
+                className="flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-white transition-all duration-150 hover:bg-primary-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ml-2"
               >
                 <option value="research">Research</option>
                 <option value="crawl">Crawl</option>
