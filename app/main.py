@@ -928,7 +928,7 @@ async def ask_question(job_id: str, request: AskRequest):
     if job.qa_remaining <= 0:
         raise HTTPException(
             status_code=429,
-            detail="Question limit reached (10 per report)",
+            detail="Question limit reached (50 per report)",
         )
 
     # Build context from the report
