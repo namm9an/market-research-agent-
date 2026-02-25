@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { startResearch, executeSearch, crawlUrl, extractUrls } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Search, Globe, FileText, Pickaxe, Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import ProfileDisplay, { ProfileData } from "@/components/ProfileDisplay";
 
 type ActionType = "research" | "crawl" | "extract";
 
