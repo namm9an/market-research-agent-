@@ -101,6 +101,8 @@ class FundingIntelligence(BaseModel):
 
 class ResearchReport(BaseModel):
     company_overview: str = ""
+    financials: CompanyFinancials = Field(default_factory=CompanyFinancials)
+    funding_intelligence: FundingIntelligence = Field(default_factory=FundingIntelligence)
     swot: SWOTAnalysis = Field(default_factory=SWOTAnalysis)
     trends: list[Trend] = Field(default_factory=list)
     competitive_landscape: str = ""
