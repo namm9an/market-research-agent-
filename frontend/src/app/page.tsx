@@ -282,7 +282,7 @@ export default function Home() {
                   // eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
                   img: ({ node, ...props }) => {
                     if (!props.src || props.src === "") return null;
-                    return <img {...props} />;
+                    return <img {...props} alt={props.alt || "Markdown internal image"} />;
                   },
                 }}
               >
