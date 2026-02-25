@@ -72,6 +72,7 @@ def search(
         search_depth: "basic" or "advanced".
         max_results: Override default max results.
         time_range: "day", "week", "month", "year" or None.
+        days: Number of days back (for news topic).
         use_cache: Whether to check/save cache.
 
     Returns:
