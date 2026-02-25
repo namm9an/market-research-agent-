@@ -986,7 +986,6 @@ async def ask_question(job_id: str, request: AskRequest):
     raw_answer = await llm_service.chat_completion(
         messages=messages,
         temperature=0.2,
-        max_tokens=500,
     )
     answer = _sanitize_followup_answer(raw_answer)
     if is_factual_followup:
