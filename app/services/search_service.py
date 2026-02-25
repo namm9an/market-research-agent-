@@ -196,7 +196,7 @@ def format_search_context(search_results: dict) -> str:
     sections = []
     total_chars = 0
 
-    for category in ["overview", "news", "financial", "competitors"]:
+    for category in ["overview", "news", "financial", "competitors", "leadership"]:
         data = search_results.get(category, {})
         answer = data.get("answer", "")
         results = data.get("results", [])
