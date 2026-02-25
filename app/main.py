@@ -859,7 +859,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
 @app.post("/api/crawl")
 @limiter.limit("10/minute")
 async def crawl_content(payload: CrawlRequest, request: Request):
-    """Crawl a URL using Tavily crawl API."""
+    """Crawl a URL using Tavily crawl API and structure via LLM."""
     from app.services.search_service import crawl_url
 
     started_at = datetime.utcnow()
