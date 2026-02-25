@@ -33,9 +33,9 @@ def _get_client() -> TavilyClient:
     return _tavily_client
 
 
-def _cache_key(query: str, topic: str) -> str:
-    """Generate a cache key from query + topic."""
-    raw = f"{query}|{topic}".lower().strip()
+def _cache_key(query: str, topic: str, search_depth: str, days: int | None, time_range: str | None) -> str:
+    """Generate a cache key from query parameters."""
+    raw = f"{query}|{topic}|{search_depth}|{days}|{time_range}".lower().strip()
     return hashlib.md5(raw.encode()).hexdigest()
 
 
