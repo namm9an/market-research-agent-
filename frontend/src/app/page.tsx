@@ -137,42 +137,48 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Unified Input with Action Selector */}
-        <form onSubmit={handleSubmit} className="w-full">
-          <div className="glass-card flex items-center gap-2 p-2 transition-all duration-200">
-            <svg
-              className="ml-3 h-5 w-5 shrink-0 text-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-              />
-            </svg>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={
-                actionType === "research"
-                  ? "Enter a company name — e.g. Zomato, Stripe, AWS…"
-                  : "Enter a URL — e.g. https://example.com"
-              }
-              className="flex-1 bg-transparent py-3 px-2 text-lg text-foreground placeholder:text-muted/60 focus:outline-none"
-              disabled={loading}
-              autoFocus
-            />
+        {/* 4-Tab Landing Page Container */}
+        <div className="w-full mt-6">
+          {/* Tabs Navigation */}
+          <div className="flex w-full items-center justify-center gap-2 mb-6">
+            <div className="flex p-1 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActionType(tab.id as ActionType);
+                    setResultContent("");
+                    setError("");
+                    setShowAdvanced(false);
+                  }}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${actionType === tab.id
+                    ? "bg-primary text-white shadow-lg shadow-primary/25"
+                    : "text-muted hover:text-white hover:bg-white/5"
+                    }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-            {/* Action Selector */}
-            <div className="relative flex items-center">
-              <select
-                value={actionType}
-                onChange={(e) => setActionType(e.target.value as ActionType)}
-                className="appearance-none bg-white/5 border border-white/10 rounded-lg py-3 pl-4 pr-10 text-sm font-medium text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50 cursor-pointer"
+          {/* Input Form */}
+          <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
+            <div className="w-full glass-card flex items-center p-2 transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary">
+              <div className="pl-4 pr-2 text-primary">
+                {actionType === "search" ? <Search className="w-6 h-6" /> :
+                  actionType === "crawl" ? <Globe className="w-6 h-6" /> :
+                    actionType === "extract" ? <FileText className="w-6 h-6" /> :
+                      <Pickaxe className="w-6 h-6" />}
+              </div>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 bg-transparent py-4 px-2 text-lg text-foreground placeholder:text-muted/50 focus:outline-none"
                 disabled={loading}
               >
                 <option value="research">Research</option>
