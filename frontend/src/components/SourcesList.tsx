@@ -1,16 +1,28 @@
+"use client";
+
+import { useState } from "react";
 import type { Source } from "@/lib/api";
 
 export default function SourcesList({ sources }: { sources: Source[] }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    // Sort sources: deduplicate and safely handle length
+    const uniqueSources = Array.from(new Map(sources.map((s) => [s.url, s])).values());
+    const displaySources = isExpanded ? uniqueSources : uniqueSources.slice(0, 10);
+    const hasMore = uniqueSources.length > 10;
+
+    if (!uniqueSources.length) return null;
+
     return (
         <section className="glass-card p-6">
             <h2 className="mb-4 text-lg font-semibold">
                 Sources
                 <span className="ml-2 text-sm font-normal text-muted">
-                    ({sources.length})
+                    ({uniqueSources.length})
                 </span>
             </h2>
             <ul className="space-y-2">
-                {sources.map((source, i) => (
+                {displaySources.map((source, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                         <span className="mt-0.5 text-muted/40">{i + 1}.</span>
                         <div className="min-w-0">
@@ -27,6 +39,19 @@ export default function SourcesList({ sources }: { sources: Source[] }) {
                     </li>
                 ))}
             </ul>
+
+            {hasMore && (
+                <div className="mt-4 border-t border-white/5 pt-4 text-center">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
+                    >
+                        {isExpanded
+                            ? "Show Less"
+                            : `View All ${uniqueSources.length} Sources`}
+                    </button>
+                </div>
+            )}
         </section>
     );
 }
