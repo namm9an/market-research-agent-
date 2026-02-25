@@ -279,6 +279,7 @@ export default function Home() {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
+                  // eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
                   img: ({ node, ...props }) => {
                     if (!props.src || props.src === "") return null;
                     return <img {...props} />;
