@@ -714,8 +714,6 @@ async def export_research(job_id: str, format: str = "md"):
         media_type="text/markdown",
         headers={"Content-Disposition": f"attachment; filename={job.query}_report.md"},
     )
-
-
 @app.get("/api/jobs")
 async def list_jobs():
     """List all research jobs."""
