@@ -70,7 +70,6 @@ export default function Home() {
       } else if (actionType === "search") {
         const res = await executeSearch(payload, searchTopic, searchDepth, 15, searchDays);
         if (res.results && res.results.length > 0) {
-          // Combine content from all crawled sub-pages
           const combinedContent = res.results
             .map((r: any) => `## Source: [${r.url}](${r.url})\n\n${r.raw_content}`)
             .join("\n\n---\n\n");
