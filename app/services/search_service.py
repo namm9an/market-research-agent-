@@ -79,7 +79,7 @@ def search(
         Tavily search response dict with 'results', 'answer', etc.
     """
     # Check cache first
-    key = _cache_key(query, topic)
+    key = _cache_key(query, topic, search_depth, days, time_range)
     if use_cache:
         cached = _load_cache(key)
         if cached:
