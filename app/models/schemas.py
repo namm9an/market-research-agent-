@@ -59,6 +59,46 @@ class Source(BaseModel):
     scraped_at: Optional[datetime] = None
 
 
+class LeaderProfile(BaseModel):
+    name: str = ""
+    title: str = ""
+    function: str = ""
+    source_url: str = ""
+    evidence: str = ""
+    confidence: str = Field(default="medium", description="high | medium | low")
+
+
+class ICPFitAssessment(BaseModel):
+    fit_score: int = Field(default=0, ge=0, le=100)
+    fit_tier: str = Field(default="medium", description="high | medium | low")
+    summary: str = ""
+    reasons: list[str] = Field(default_factory=list)
+    recommended_pitch_angles: list[str] = Field(default_factory=list)
+    concerns: list[str] = Field(default_factory=list)
+
+
+class RevenueYear(BaseModel):
+    year: str = ""
+    amount: str = ""
+
+class CompanyFinancials(BaseModel):
+    core_business_summary: str = ""
+    market_cap: str = "Private or Unknown"
+    funding_stage: str = "Unknown"
+    revenue_history: list[RevenueYear] = Field(default_factory=list)
+
+class FundingMilestone(BaseModel):
+    date_or_round: str = ""
+    amount: str = ""
+    investors: list[str] = Field(default_factory=list)
+
+class FundingIntelligence(BaseModel):
+    investor_types: list[str] = Field(default_factory=list, description="e.g. Tier 1 VC, Corporate, PE")
+    funding_timeline: list[FundingMilestone] = Field(default_factory=list)
+    capital_allocation_purpose: str = "Unknown"
+    e2e_compute_lead_status: str = Field(default="Cold", description="Hot | Warm | Cold")
+    compute_spending_evidence: str = "No explicit evidence of GPU/AI infrastructure scaling found."
+
 class ResearchReport(BaseModel):
     company_overview: str = ""
     swot: SWOTAnalysis = Field(default_factory=SWOTAnalysis)
