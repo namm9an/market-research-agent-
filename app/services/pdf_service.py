@@ -162,18 +162,103 @@ def generate_pdf(job: ResearchJob) -> bytes:
                 pdf.bullet_point(f"{rev.year}: {rev.amount}")
             pdf.ln(2)
 
-    for label, items, color in [
-        ("Strengths", r.swot.strengths, (39, 174, 96)),
-        ("Weaknesses", r.swot.weaknesses, (231, 76, 60)),
-        ("Opportunities", r.swot.opportunities, (52, 152, 219)),
-        ("Threats", r.swot.threats, (243, 156, 18)),
-    ]:
-        pdf.sub_title(f"{label}")
-        pdf.tag(f"{len(items)} items", color)
-        pdf.ln(4)
-        for item in items:
-            pdf.bullet_point(item)
-        pdf.ln(3)
+    # --- Leader Discovery ---
+    pdf.section_title("Leader Discovery")
+    leaders = getattr(r, "leaders", []) or []
+    if leaders:
+        for leader in leaders:
+            title_line = f"{leader.name} -- {leader.title}"
+            if leader.function:
+                title_line += f" ({leader.function})"
+            title_line += f" [{leader.confidence}]"
+            pdf.sub_title(title_line)
+            if leader.evidence:
+                pdf.body_text(leader.evidence)
+            if leader.source_url:
+                pdf.set_font("Helvetica", "", 8)
+                pdf.set_text_color(52, 152, 219)
+                pdf.cell(0, 4.5, leader.source_url[:100], new_x="LMARGIN", new_y="NEXT", link=leader.source_url)
+                pdf.set_text_color(100, 100, 100)
+                pdf.ln(2)
+    else:
+        pdf.body_text("No reliable leaders extracted from available context.")
+
+    # --- ICP Fit ---
+    pdf.section_title("ICP Fit (E2E Networks)")
+    icp_fit = getattr(r, "icp_fit", None)
+    if icp_fit:
+        
+        # Color coding for Fit Tier
+        if icp_fit.fit_tier.lower() == "high":
+            tier_color = SUCCESS_COLOR
+        elif icp_fit.fit_tier.lower() == "medium":
+            tier_color = WARNING_COLOR
+        else:
+            tier_color = DANGER_COLOR
+            
+        pdf.set_font(FONT_FAMILY, style="B", size=10)
+        pdf.set_text_color(*tier_color)
+        pdf.cell(0, 6, f"Fit Score: {icp_fit.fit_score}/100 | Tier: {icp_fit.fit_tier.upper()}", ln=True)
+        pdf.set_text_color(*TEXT_COLOR)
+        pdf.ln(2)
+        
+        if icp_fit.summary:
+            pdf.body_text(icp_fit.summary)
+            
+        if icp_fit.reasons:
+            pdf.sub_title("Fit Reasons")
+            for reason in icp_fit.reasons:
+                pdf.bullet_point(reason)
+
+    # --- Deep Funding Intelligence ---
+    fund = getattr(r, "funding_intelligence", None)
+    if fund:
+        pdf.section_title("Capital Allocation & GPU Spending Intent")
+        
+        # Color coding for Compute Lead Status
+        if fund.e2e_compute_lead_status == "Hot":
+            lead_color = DANGER_COLOR
+        elif fund.e2e_compute_lead_status == "Warm":
+            lead_color = WARNING_COLOR
+        else:
+            lead_color = (0, 150, 255) # Blue
+            
+        pdf.set_font(FONT_FAMILY, style="B", size=10)
+        pdf.set_text_color(*lead_color)
+        pdf.cell(0, 6, f"Compute Lead Status: {fund.e2e_compute_lead_status.upper()}", ln=True)
+        pdf.set_text_color(*TEXT_COLOR)
+        pdf.ln(2)
+        
+        pdf.body_text(fund.capital_allocation_purpose)
+        
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(100, 100, 100)
+        pdf.multi_cell(0, 5, f"Evidence: {fund.compute_spending_evidence}")
+        pdf.ln(2)
+        pdf.set_text_color(*TEXT_COLOR)
+
+        if fund.investor_types:
+            pdf.sub_title("Investor Profile")
+            pdf.body_text(", ".join(fund.investor_types))
+            
+        if fund.funding_timeline:
+            pdf.sub_title("Execution Timeline")
+            for round_data in fund.funding_timeline:
+                inv_text = ", ".join(round_data.investors) if getattr(round_data, 'investors', None) else "Unknown"
+                pdf.bullet_point(f"{round_data.date_or_round}: {round_data.amount} ({inv_text})")
+            pdf.ln(2)
+
+        if icp_fit.recommended_pitch_angles:
+            pdf.sub_title("Recommended Pitch Angles")
+            for angle in icp_fit.recommended_pitch_angles:
+                pdf.bullet_point(angle)
+
+        if icp_fit.concerns:
+            pdf.sub_title("Concerns")
+            for concern in icp_fit.concerns:
+                pdf.bullet_point(concern)
+    else:
+        pdf.body_text("ICP fit assessment unavailable.")
 
     # --- Market Trends ---
     pdf.section_title("Market Trends")
