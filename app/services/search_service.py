@@ -89,7 +89,7 @@ def search(
 
     kwargs = {
         "query": query,
-        "search_depth": "advanced",
+        "search_depth": search_depth,
         "topic": topic,
         "max_results": max_results or MAX_SEARCH_RESULTS,
         "include_raw_content": "markdown",
