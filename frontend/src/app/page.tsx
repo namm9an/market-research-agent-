@@ -16,6 +16,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resultContent, setResultContent] = useState("");
+  const [profiles, setProfiles] = useState<{ profile: ProfileData; raw_text: string; url: string }[]>([]);
+
+  // Advanced options state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [searchTopic, setSearchTopic] = useState("general");
+  const [searchDepth, setSearchDepth] = useState("basic");
+  const [searchDays, setSearchDays] = useState(30);
+
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
