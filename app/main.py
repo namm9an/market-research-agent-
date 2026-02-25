@@ -854,7 +854,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
     job.operation_result = output_payload
     job.completed_at = datetime.utcnow()
     job.duration_seconds = (job.completed_at - started_at).total_seconds()
-    return result
+    return output_payload
 
 @app.post("/api/crawl")
 @limiter.limit("10/minute")
