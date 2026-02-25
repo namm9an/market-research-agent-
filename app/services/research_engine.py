@@ -404,6 +404,8 @@ async def run_research(job: ResearchJob) -> ResearchJob:
             trends=trends,
             competitive_landscape=report_data.get("competitive_landscape", ""),
             key_findings=report_data.get("key_findings", []),
+            leaders=leaders,
+            icp_fit=icp_fit,
             sources=sources,
         )
 
