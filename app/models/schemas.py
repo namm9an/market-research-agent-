@@ -128,7 +128,7 @@ class ResearchJob(BaseModel):
     error: Optional[str] = None
     # Follow-up Q&A
     qa_history: list[dict] = Field(default_factory=list)
-    qa_remaining: int = Field(default=10)
+    qa_remaining: int = Field(default=50)
 
 
 class ResearchStartResponse(BaseModel):
