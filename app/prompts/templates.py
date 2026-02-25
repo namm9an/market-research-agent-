@@ -126,3 +126,100 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
   "competitive_landscape": "1-2 paragraph analysis",
   "key_findings": ["finding 1", "finding 2", "finding 3"]
 }}"""
+
+FINANCIALS_PROMPT = """You are a financial performance analyst. Extract the core business description, market cap/valuation, funding stage, and revenue history from the context about {company_name}.
+
+INSTRUCTIONS:
+- Core business summary must be a sharp, clear 1-2 sentence explanation of exactly how this company makes money.
+- If market cap or valuation is private/unavailable, output "Private" or "Unknown".
+- If funding stage is unknown, output "Unknown"
+- Extract any available revenue numbers for recent years. Convert values to consistent string formats (e.g. "$50M", "$1.2B").
+- Use ONLY evidence from the context data provided. Return an empty array for revenue if no data exists.
+
+CONTEXT DATA:
+{context}
+
+OUTPUT FORMAT (respond in valid JSON only, no extra text):
+{{
+  "core_business_summary": "1-2 sentence description of what they sell and who they sell it to.",
+  "market_cap": "$X.X Billion / Private",
+  "funding_stage": "Public / Series C / Bootstrapped / Unknown",
+  "revenue_history": [
+    {{ "year": "2023", "amount": "$550M" }},
+    {{ "year": "2022", "amount": "$400M" }}
+  ]
+}}"""
+
+FUNDING_INTELLIGENCE_PROMPT = """You are an Enterprise Cloud & Tech Venture Analyst for E2E Networks (a GPU/Compute cloud provider).
+Extrapolate the deep funding context and capital allocation strategy for {company_name}.
+
+INSTRUCTIONS:
+1. Identify the 'investor_types' (e.g., Tier 1 VC, Corporate Strategic, Private Equity, Debt). Look for names like "Accel", "Sequoia", "NVIDIA".
+2. Build a 'funding_timeline' listing ALL major rounds (Seed, Series A, Series B, Series C, etc.), investor names, and amounts found in the context. DO NOT return an empty list if data exists.
+3. Crucially, deduce the 'capital_allocation_purpose'. What are they doing with the money? Look closely for mentions of R&D, data centers, buying GPUs, training foundation models, or scaling infrastructure. Synthesize a 2-3 sentence summary.
+4. Score them on 'e2e_compute_lead_status' ("Hot", "Warm", or "Cold"):
+   - "Hot" if they explicitly mention building AI models, needing massive compute, expanding data centers, or buying GPUs.
+   - "Warm" if they are a tech/SaaS company that likely has standard cloud infrastructure needs but no massive AI training explicitly stated.
+   - "Cold" if the funding is purely for marketing, opening retail stores, or non-technical expansion.
+5. Provide the 'compute_spending_evidence' (1-2 sentences summarizing why they got that score based on the text). If you see AI video generation or AI avatars, they are Hot or Warm.
+
+CONTEXT DATA:
+{context}
+
+OUTPUT FORMAT (respond in valid JSON only, no extra text):
+{{
+  "investor_types": ["Tier 1 VC", "Strategic Partner"],
+  "funding_timeline": [
+    {{ "date_or_round": "Series B (2023)", "amount": "$50M", "investors": ["Sequoia", "NVIDIA"] }}
+  ],
+  "capital_allocation_purpose": "Expanding AI cluster and hiring researchers.",
+  "e2e_compute_lead_status": "Hot",
+  "compute_spending_evidence": "They specifically raised $50M to buy H100 GPUs and train new foundation models, indicating urgent massive compute needs."
+}}"""
+
+CRAWL_STRUCTURING_PROMPT = """Analyze the following raw scraped website text and extract a structured Tracxn-style company profile.
+
+Company Text Data:
+{context}
+
+You must return a single JSON object. If a specific piece of information is not found in the text, use null or an empty array [].
+DO NOT hallucinate. Only use facts present in the provided text.
+
+OUTPUT FORMAT (Respond IN VALID JSON ONLY, no markdown tags outside the JSON block):
+{{
+  "firmographics": {{
+    "name": "Company Name",
+    "year_founded": "YYYY or null",
+    "hq_location": "City, Country or null",
+    "employee_count": "e.g., 50-200 or null"
+  }},
+  "executives": [
+    {{ "name": "FullName", "title": "Job Title" }}
+  ],
+  "financials": {{
+    "last_funding_round": "e.g., Series B or null",
+    "parts_of_funding": "e.g., Equity, Debt breakdown or null",
+    "total_funding": "$X.XM or null",
+    "investors": ["Investor A", "Investor B"]
+  }},
+  "people_funded": [
+    "Founder 1", "Founder 2", "Managing Director"
+  ],
+  "portfolio": [
+    "Product family 1", "Subsidiary 2"
+  ],
+  "offerings": [
+    "Product or Service 1 description",
+    "Product or Service 2 description"
+  ],
+  "positioning": {{
+    "customer_it_caters": "ICP description / target audiences",
+    "unique_value_prop": "Their main differentiator or mission statement"
+  }},
+  "trust_signals": [
+    "Named client 1",
+    "SOC2 / ISO Certification",
+    "Key Partnership"
+  ]
+}}"""
+
