@@ -8,7 +8,7 @@ import remarkGfm from "remark-gfm";
 import { Search, Globe, FileText, Pickaxe, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import ProfileDisplay, { ProfileData } from "@/components/ProfileDisplay";
 
-type ActionType = "research" | "crawl" | "extract";
+type ActionType = "research" | "search" | "extract" | "crawl";
 
 export default function Home() {
   const [inputValue, setInputValue] = useState("");
