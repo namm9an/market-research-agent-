@@ -122,7 +122,7 @@ export default function Home() {
       </div>
 
       {/* Main content */}
-      <main className="relative z-10 flex w-full max-w-2xl flex-col items-center gap-8 text-center">
+      <main className="relative z-10 flex w-full max-w-3xl flex-col items-center gap-8 text-center mt-12 mb-20">
         {/* Logo / Title */}
         <div className="flex flex-col items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15">
