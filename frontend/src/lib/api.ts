@@ -12,7 +12,7 @@ export type JobStatus =
     | "completed"
     | "failed";
 
-export type JobKind = "research" | "crawl" | "extract";
+export type JobKind = "research" | "crawl" | "extract" | "search";
 
 export interface Source {
     url: string;
@@ -32,12 +32,60 @@ export interface SWOT {
     threats: string[];
 }
 
+export interface LeaderProfile {
+    name: string;
+    title: string;
+    function: string;
+    source_url: string;
+    evidence: string;
+    confidence: "high" | "medium" | "low" | string;
+}
+
+export interface ICPFitAssessment {
+    fit_score: number;
+    fit_tier: "high" | "medium" | "low" | string;
+    summary: string;
+    reasons: string[];
+    recommended_pitch_angles: string[];
+    concerns: string[];
+}
+
+export interface RevenueYear {
+    year: string;
+    amount: string;
+}
+
+export interface CompanyFinancials {
+    core_business_summary: string;
+    market_cap: string;
+    funding_stage: string;
+    revenue_history: RevenueYear[];
+}
+
+export interface FundingMilestone {
+    date_or_round: string;
+    amount: string;
+    investors: string[];
+}
+
+export interface FundingIntelligence {
+    investor_types: string[];
+    funding_timeline: FundingMilestone[];
+    capital_allocation_purpose: string;
+    e2e_compute_lead_status: string;
+    compute_spending_evidence: string;
+}
+
 export interface ResearchReport {
     company_overview: string;
+    financials: CompanyFinancials;
+    funding_intelligence: FundingIntelligence;
     swot: SWOT;
     trends: Trend[];
     competitive_landscape: string;
     key_findings: string[];
+    leaders: LeaderProfile[];
+    icp_fit: ICPFitAssessment;
     sources: Source[];
 }
 
@@ -159,15 +207,35 @@ export async function healthCheck() {
 
 /** Extract content from a URL */
 export async function extractUrls(urls: string[]) {
-    return apiFetch<any>("/api/extract", {
+    return apiFetch<unknown>("/api/extract", {
         method: "POST",
         body: JSON.stringify({ urls }),
     });
 }
 
 export async function crawlUrl(url: string) {
-    return apiFetch<any>("/api/crawl", {
+    return apiFetch<unknown>("/api/crawl", {
         method: "POST",
         body: JSON.stringify({ url }),
+    });
+}
+
+export async function executeSearch(
+    query: string,
+    topic = "general",
+    search_depth = "basic",
+    max_results = 10,
+    days = 30
+) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return apiFetch<any>("/api/search", {
+        method: "POST",
+        body: JSON.stringify({
+            query,
+            topic,
+            search_depth,
+            max_results,
+            days,
+        }),
     });
 }
