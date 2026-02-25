@@ -1058,7 +1058,6 @@ async def ask_question(job_id: str, request: AskRequest):
         rewrite_raw = await llm_service.chat_completion(
             messages=rewrite_messages,
             temperature=0.1,
-            max_tokens=500,
         )
         rewritten = _sanitize_followup_answer(rewrite_raw)
         if rewritten:
