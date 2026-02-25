@@ -99,6 +99,8 @@ def search(
 
     if time_range:
         kwargs["time_range"] = time_range
+    if days:
+        kwargs["days"] = days
 
     logger.info(f"Tavily search: query='{query}', topic={topic}")
     response = client.search(**kwargs)
