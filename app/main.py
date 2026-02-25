@@ -1021,7 +1021,6 @@ async def ask_question(job_id: str, request: AskRequest):
             strict_raw = await llm_service.chat_completion(
                 messages=strict_messages,
                 temperature=0.1,
-                max_tokens=400,
             )
             strict_answer = _sanitize_followup_answer(strict_raw)
             if strict_answer and _has_citations(strict_answer):
