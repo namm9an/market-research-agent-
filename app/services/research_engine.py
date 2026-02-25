@@ -288,7 +288,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
 
         # --- Stage 2: Analyze (SWOT + Trends + Leaders + ICP + Financials) ---
         job.status = JobStatus.ANALYZING
-        logger.info(f"[{job.job_id}] Stage 2: Analyzing")
+        logger.info(f"[{job.job_id}] Stage 2: Analyzing (SWOT + Trends + Leaders + ICP + Financials)")
 
         # Generate SWOT analysis
         swot_prompt = SWOT_PROMPT.format(
