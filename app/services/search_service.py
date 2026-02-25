@@ -157,6 +157,12 @@ def search_company(company_name: str) -> dict:
         topic="general",
     )
 
+    # Query 5: Leadership (for sales intelligence / outreach)
+    results["leadership"] = search(
+        query=f"{company_name} leadership team executives board CTO CIO VP engineering",
+        topic="general",
+    )
+
     # Collect all sources
     all_sources = []
     for category, data in results.items():
