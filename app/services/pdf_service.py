@@ -310,5 +310,14 @@ def generate_pdf(job: ResearchJob) -> bytes:
         pdf.set_text_color(100, 100, 100)
         pdf.ln(1)
 
+    # --- Follow-up Q&A ---
+    qa_history = getattr(job, "qa_history", [])
+    if qa_history:
+        pdf.section_title("Follow-up Q&A")
+        for idx, item in enumerate(qa_history, 1):
+            pdf.sub_title(f"Q{idx}. {item['question']}")
+            pdf.body_text(item['answer'])
+            pdf.ln(3)
+
     # Generate bytes
     return pdf.output()
