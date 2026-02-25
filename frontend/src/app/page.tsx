@@ -108,6 +108,11 @@ export default function Home() {
     }
   }
 
+  // Determine placeholder based on tab
+  let placeholder = "Enter a company or industry name...";
+  if (actionType === "search") placeholder = "Ask any question or search topic...";
+  if (actionType === "crawl" || actionType === "extract") placeholder = "https://example.com";
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4">
       {/* Background gradient orbs */}
