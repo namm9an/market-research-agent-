@@ -275,7 +275,7 @@ export default function Home() {
               <Search className="w-5 h-5 text-primary" />
               Search Results
             </h2>
-            <div className="prose prose-sm prose-invert max-w-none break-all">
+            <div className="prose prose-sm prose-invert max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
