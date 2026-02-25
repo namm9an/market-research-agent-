@@ -126,7 +126,13 @@ export default function ReportPage() {
                             </p>
                         </section>
 
-                        <SwotCard swot={job.report.swot} />
+                        <FinancialsCard financials={job.report.financials} />
+
+                        <FundingIntelligenceCard data={job.report.funding_intelligence} />
+
+                        <LeaderDiscovery leaders={job.report.leaders || []} />
+
+                        <IcpFitCard icpFit={job.report.icp_fit} />
 
                         <TrendsList trends={job.report.trends} />
 
