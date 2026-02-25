@@ -73,7 +73,16 @@ export default function Home() {
           const combinedContent = res.results
             .map((r: { title: string; url: string; content: string }) => `### [${r.title}](${r.url})\n\n${r.content}`)
             .join("\n\n---\n\n");
-          setResultContent(combinedContent || "No content found on this domain.");
+          setResultContent(`## Search Results\n\n${combinedContent}`);
+          window.dispatchEvent(new Event("mra_history_updated"));
+        } else {
+          throw new Error("No results found.");
+        }
+      } else if (actionType === "crawl") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await crawlUrl(payload) as any;
+        if (res.structured_results && res.structured_results.length > 0) {
+          setProfiles(res.structured_results);
           window.dispatchEvent(new Event("mra_history_updated"));
         } else if (res.failed_results && res.failed_results.length > 0) {
           throw new Error(`Tavily failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
