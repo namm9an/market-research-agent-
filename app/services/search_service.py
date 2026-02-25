@@ -69,6 +69,7 @@ def search(
     Args:
         query: Search query string.
         topic: "general", "news", or "finance".
+        search_depth: "basic" or "advanced".
         max_results: Override default max results.
         time_range: "day", "week", "month", "year" or None.
         use_cache: Whether to check/save cache.
