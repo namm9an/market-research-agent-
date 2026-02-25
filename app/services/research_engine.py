@@ -386,7 +386,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
         ])
         report_data = _parse_json_response(report_response)
 
-        # Build sources from search results
+        # Build sources from all search results
         sources = [
             Source(
                 url=s["url"],
