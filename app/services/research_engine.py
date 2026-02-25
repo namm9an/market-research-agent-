@@ -286,7 +286,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
 
         logger.info(f"[{job.job_id}] Search complete: {len(context)} chars of context")
 
-        # --- Stage 2: Analyze (SWOT + Trends) ---
+        # --- Stage 2: Analyze (SWOT + Trends + Leaders + ICP + Financials) ---
         job.status = JobStatus.ANALYZING
         logger.info(f"[{job.job_id}] Stage 2: Analyzing")
 
