@@ -67,10 +67,8 @@ export default function Home() {
         }
 
         router.push(`/report/${job.job_id}`);
-      } else if (actionType === "crawl") {
-        const { crawlUrl } = await import("@/lib/api");
-        const res = await crawlUrl(payload);
-
+      } else if (actionType === "search") {
+        const res = await executeSearch(payload, searchTopic, searchDepth, 15, searchDays);
         if (res.results && res.results.length > 0) {
           // Combine content from all crawled sub-pages
           const combinedContent = res.results
