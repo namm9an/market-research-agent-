@@ -282,6 +282,22 @@ def generate_pdf(job: ResearchJob) -> bytes:
     for i, finding in enumerate(r.key_findings, 1):
         pdf.numbered_item(i, finding)
 
+    # --- SWOT Analysis ---
+    pdf.section_title("SWOT Analysis")
+
+    for label, items, color in [
+        ("Strengths", r.swot.strengths, (39, 174, 96)),
+        ("Weaknesses", r.swot.weaknesses, (231, 76, 60)),
+        ("Opportunities", r.swot.opportunities, (52, 152, 219)),
+        ("Threats", r.swot.threats, (243, 156, 18)),
+    ]:
+        pdf.sub_title(f"{label}")
+        pdf.tag(f"{len(items)} items", color)
+        pdf.ln(4)
+        for item in items:
+            pdf.bullet_point(item)
+        pdf.ln(3)
+
     # --- Sources ---
     pdf.section_title("Sources")
     pdf.set_font("Helvetica", "", 8)
