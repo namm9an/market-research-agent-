@@ -41,6 +41,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResultContent("");
+    setProfiles([]);
 
     try {
       if (actionType === "research") {
