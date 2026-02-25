@@ -84,6 +84,227 @@ REASONING_LINE_RE = re.compile(
 )
 CITATION_RE = re.compile(r"\[\d+\]")
 CITATION_ONLY_RE = re.compile(r"^\s*(\[\d+\]\s*)+$")
+EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", flags=re.IGNORECASE)
+PHONE_RE = re.compile(r"(?:\+?\d[\d\-\s()]{7,}\d)")
+COMPLIANCE_RE = re.compile(r"\b(soc\s*2|soc2|iso\s*\d+|hipaa|gdpr|pci\s*dss|dpdp|compliant|certified)\b", flags=re.IGNORECASE)
+PRICING_RE = re.compile(r"(?:₹|\$|cost|pricing|price|/hr|per hour|monthly|yearly|save|savings|lower costs?)", flags=re.IGNORECASE)
+LEADERSHIP_TITLE_RE = re.compile(
+    r"\b(ceo|cto|cfo|coo|chief|director|president|vice president|vp|svp|head|founder|managing director|country manager|general manager|officer)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _parse_json_from_text(text: str) -> dict | list:
+    """Parse JSON from plain or markdown-wrapped model responses."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    candidate = text.strip()
+    if "```json" in candidate:
+        candidate = candidate.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in candidate:
+        candidate = candidate.split("```", 1)[1].split("```", 1)[0].strip()
+
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+
+    for start_char, end_char in [("{", "}"), ("[", "]")]:
+        start = candidate.find(start_char)
+        end = candidate.rfind(end_char)
+        if start != -1 and end != -1 and end > start:
+            snippet = candidate[start : end + 1]
+            try:
+                return json.loads(snippet)
+            except json.JSONDecodeError:
+                continue
+
+    return {}
+
+
+def _as_clean_list(value, max_items: int = 10) -> list[str]:
+    """Normalize unknown JSON values into list[str] with dedupe."""
+    if isinstance(value, str):
+        items = [value]
+    elif isinstance(value, list):
+        items = [str(v) for v in value]
+    else:
+        items = []
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        cleaned = re.sub(r"\s+", " ", item).strip(" -•\t\r\n")
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(cleaned)
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def _compact_crawl_text(text: str) -> str:
+    """Clean crawl text: collapse whitespace and dedupe noisy repeated lines."""
+    if not isinstance(text, str):
+        return ""
+    lines = text.splitlines()
+    seen: set[str] = set()
+    kept: list[str] = []
+    for raw in lines:
+        line = re.sub(r"\s+", " ", raw).strip()
+        if len(line) < 3:
+            continue
+        key = line.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def _build_crawl_context(seed_url: str, crawl_result: dict, max_chars: int = 22000) -> str:
+    """Build compact multi-source context string from Tavily crawl output."""
+    results = crawl_result.get("results", [])
+    if not isinstance(results, list):
+        return ""
+
+    chunks: list[str] = []
+    total = 0
+    for idx, item in enumerate(results[:10], 1):
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url", "")).strip() or seed_url
+        title = str(item.get("title", "")).strip()
+        body = _compact_crawl_text(str(item.get("raw_content") or item.get("content") or ""))
+        if len(body) > 4500:
+            body = f"{body[:4500]}..."
+
+        chunk = (
+            f"Source [{idx}]\n"
+            f"URL: {url}\n"
+            f"Title: {title}\n"
+            f"Content:\n{body}"
+        )
+        if total + len(chunk) > max_chars:
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+
+    return "\n\n---\n\n".join(chunks)
+
+
+def _normalize_company_profile(profile: dict, seed_url: str, crawl_result: dict) -> dict:
+    """Force company profile shape for frontend stability."""
+    if not isinstance(profile, dict):
+        profile = {}
+
+    sources: list[dict[str, str]] = []
+    raw_results = crawl_result.get("results", [])
+    if isinstance(raw_results, list):
+        for item in raw_results[:10]:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url", "")).strip()
+            title = str(item.get("title", "")).strip()
+            if url:
+                sources.append({"url": url, "title": title})
+
+    raw_leadership = profile.get("leadership") or profile.get("leaders") or []
+    leadership: list[dict[str, str]] = []
+    if isinstance(raw_leadership, list):
+        for entry in raw_leadership[:12]:
+            if isinstance(entry, dict):
+                name = str(entry.get("name", "")).strip()
+                title = str(entry.get("title", entry.get("role", ""))).strip()
+            else:
+                name = str(entry).strip()
+                title = ""
+            if name:
+                leadership.append({"name": name, "title": title})
+
+    contact_raw = profile.get("contact", {})
+    if not isinstance(contact_raw, dict):
+        contact_raw = {}
+
+    normalized = {
+        "company_name": str(profile.get("company_name", profile.get("name", ""))).strip(),
+        "website": str(profile.get("website", seed_url)).strip() or seed_url,
+        "one_liner": str(profile.get("one_liner", profile.get("tagline", ""))).strip(),
+        "overview": str(profile.get("overview", profile.get("description", ""))).strip(),
+        "offerings": _as_clean_list(profile.get("offerings", profile.get("products_services", [])), max_items=12),
+        "target_audiences": _as_clean_list(profile.get("target_audiences", profile.get("target_customers", []))),
+        "differentiators": _as_clean_list(profile.get("differentiators", profile.get("value_props", []))),
+        "proof_points": _as_clean_list(profile.get("proof_points", profile.get("proof", [])), max_items=12),
+        "compliance": _as_clean_list(profile.get("compliance", profile.get("certifications", [])), max_items=8),
+        "pricing_signals": _as_clean_list(profile.get("pricing_signals", profile.get("pricing", [])), max_items=8),
+        "notable_facts": _as_clean_list(profile.get("notable_facts", profile.get("facts", [])), max_items=10),
+        "leadership": leadership,
+        "contact": {
+            "emails": _as_clean_list(contact_raw.get("emails", profile.get("emails", [])), max_items=5),
+            "phones": _as_clean_list(contact_raw.get("phones", profile.get("phones", [])), max_items=5),
+            "cta": _as_clean_list(contact_raw.get("cta", contact_raw.get("cta_links", profile.get("cta_links", []))), max_items=8),
+        },
+        "sources": sources,
+    }
+    return normalized
+
+
+async def _extract_company_profile_from_crawl(seed_url: str, crawl_result: dict) -> dict:
+    """Generate normalized company profile object from crawl output."""
+    context = _build_crawl_context(seed_url, crawl_result)
+    if not context.strip():
+        return {}
+
+    prompt = (
+        "You are a B2B research extractor. Convert crawled company website text into a normalized JSON profile.\n"
+        "Rules:\n"
+        "- Return valid JSON only. No markdown.\n"
+        "- Deduplicate repeated navbar/footer text.\n"
+        "- Use only provided context; do not invent facts.\n"
+        "- Keep arrays concise and useful.\n\n"
+        "JSON schema:\n"
+        "{\n"
+        '  "company_name": "",\n'
+        '  "website": "",\n'
+        '  "one_liner": "",\n'
+        '  "overview": "",\n'
+        '  "offerings": [],\n'
+        '  "target_audiences": [],\n'
+        '  "differentiators": [],\n'
+        '  "proof_points": [],\n'
+        '  "compliance": [],\n'
+        '  "pricing_signals": [],\n'
+        '  "notable_facts": [],\n'
+        '  "leadership": [{"name": "", "title": ""}],\n'
+        '  "contact": {"emails": [], "phones": [], "cta": []}\n'
+        "}\n"
+    )
+
+    raw = await llm_service.chat_completion(
+        messages=[
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Primary URL: {seed_url}\n\n"
+                    f"Crawled Context:\n{context}"
+                ),
+            },
+        ],
+        temperature=0.1,
+        max_tokens=1200,
+    )
+    parsed = _parse_json_from_text(raw)
+    if not isinstance(parsed, dict):
+        return {}
+    return _normalize_company_profile(parsed, seed_url=seed_url, crawl_result=crawl_result)
 
 
 def _needs_followup_web_context(question: str) -> bool:
