@@ -21,6 +21,8 @@ from app.models.schemas import (
     CompanyFinancials,
     RevenueYear,
     JobStatus,
+    FundingIntelligence,
+    FundingMilestone,
 )
 from app.services import search_service, llm_service
 from app.prompts.templates import SWOT_PROMPT, TRENDS_PROMPT, REPORT_PROMPT
