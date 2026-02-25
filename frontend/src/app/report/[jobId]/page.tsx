@@ -148,6 +148,8 @@ export default function ReportPage() {
 
                         <FindingsList findings={job.report.key_findings} />
 
+                        <SwotCard swot={job.report.swot} />
+
                         <SourcesList sources={job.report.sources} />
 
                         {/* Q&A */}
