@@ -16,6 +16,10 @@ from app.models.schemas import (
     SWOTAnalysis,
     Trend,
     Source,
+    LeaderProfile,
+    ICPFitAssessment,
+    CompanyFinancials,
+    RevenueYear,
     JobStatus,
 )
 from app.services import search_service, llm_service
