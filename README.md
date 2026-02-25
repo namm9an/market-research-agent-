@@ -21,6 +21,7 @@ Type a company name → get a professional market research report with:
 - 🏆 **Competitive Landscape** — competitor analysis and positioning
 - 💡 **Key Findings** — 10+ actionable insights
 - 🔗 **40+ Sources** — all findings backed by real web sources
+- 🔎 **4-Tab Command Center** — Instant Web Searches, Web Crawling, Structured Extraction, and Deep Research pipelines.
 
 **All running on your own GPU infrastructure. No OpenAI. No data leaving your cloud.**
 
@@ -126,9 +127,12 @@ curl "http://localhost:8080/api/research/YOUR_JOB_ID/export?format=md"
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/health` | Health check — vLLM + Tavily status |
-| `POST` | `/api/research` | Start new research job |
+| `POST` | `/api/research` | Start heavy 35-sec deep research job |
+| `POST` | `/api/search` | Lightweight raw generic web search (Bypasses LLM) |
+| `POST` | `/api/extract` | Target URLs to extract firmographics (Funding, ICP, Portfolio) |
+| `POST` | `/api/crawl` | Target domains to extract full structured company profiles |
 | `GET` | `/api/research/{job_id}` | Get job status + results |
-| `GET` | `/api/research/{job_id}/export` | Export report (markdown/JSON) |
+| `GET` | `/api/research/{job_id}/export` | Export report (markdown/PDF/JSON) |
 | `GET` | `/api/jobs` | List all research jobs |
 
 ### Example Response
