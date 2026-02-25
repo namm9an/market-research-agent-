@@ -25,7 +25,15 @@ from app.models.schemas import (
     FundingMilestone,
 )
 from app.services import search_service, llm_service
-from app.prompts.templates import SWOT_PROMPT, TRENDS_PROMPT, REPORT_PROMPT
+from app.prompts.templates import (
+    SWOT_PROMPT,
+    TRENDS_PROMPT,
+    LEADERS_PROMPT,
+    ICP_FIT_PROMPT,
+    FINANCIALS_PROMPT,
+    REPORT_PROMPT,
+    FUNDING_INTELLIGENCE_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
