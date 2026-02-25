@@ -61,6 +61,7 @@ def search(
     search_depth: str = "advanced",
     max_results: int | None = None,
     time_range: str | None = None,
+    days: int | None = None,
     use_cache: bool = True,
 ) -> dict:
     """Search the web using Tavily.
