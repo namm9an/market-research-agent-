@@ -880,6 +880,31 @@ async def crawl_content(payload: CrawlRequest, request: Request):
         job.duration_seconds = (job.completed_at - started_at).total_seconds()
         raise HTTPException(status_code=400, detail=job.error)
 
+    # Convert raw text into Tracxn-style structured JSON
+    structured_results = []
+    if result.get("results"):
+        for res in result["results"]:
+            raw = res.get("raw_content") or res.get("content") or ""
+            parsed = {}
+            if len(raw) > 50:
+                try:
+                    prompt = CRAWL_STRUCTURING_PROMPT.format(context=raw[:20000]) # Pass up to ~5k tokens
+                    llm_resp = await llm_service.chat_completion([
+                        {"role": "system", "content": "You are a professional firmographic data extraction API. Respond only in valid JSON."},
+                        {"role": "user", "content": prompt}
+                    ])
+                    parsed = _parse_json_response(llm_resp)
+                except Exception as e:
+                    logger.error(f"Failed to structure extraction for {res.get('url')}: {e}")
+            
+            structured_results.append({
+                "url": res.get("url"),
+                "profile": parsed,
+                "raw_text": raw[:1000] + "..." if len(raw) > 1000 else raw
+            })
+
+    output_payload = {"structured_results": structured_results}
+
     job.status = JobStatus.COMPLETED
     job.operation_result = result
     job.completed_at = datetime.utcnow()
