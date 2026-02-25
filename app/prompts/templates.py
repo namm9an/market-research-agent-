@@ -42,6 +42,64 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
 ]"""
 
 
+LEADERS_PROMPT = """You are a B2B sales intelligence analyst. Extract current leadership contacts for {company_name} from the context.
+
+INSTRUCTIONS:
+- Return 5-10 likely decision-makers relevant for infra/cloud/GPU conversations
+- Specifically look for Founders and Co-Founders, as well as executive and senior technical roles (CEO, CTO, CIO, VP Engineering, Head of Infra, Head of AI/Data)
+- Use only evidence present in context
+- Do not invent people or titles
+- If evidence is weak, lower confidence
+
+CONTEXT DATA:
+{context}
+
+OUTPUT FORMAT (respond in valid JSON only, no extra text):
+[
+  {{
+    "name": "Full Name",
+    "title": "Role Title (e.g. Founder, CEO)",
+    "function": "Technology | Engineering | Data/AI | Finance | Operations | Other",
+    "source_url": "https://...",
+    "evidence": "Short snippet supporting this leadership mapping",
+    "confidence": "high"
+  }}
+]"""
+
+
+ICP_FIT_PROMPT = """You are an enterprise GTM analyst for E2E Networks.
+
+E2E NETWORKS OFFERING (summary):
+- GPU cloud infrastructure for AI training and inference
+- High-performance compute and managed clusters
+- Cost/performance positioning for AI workloads and model serving
+
+Task: Evaluate how well {company_name} fits E2E Networks' ideal customer profile (ICP).
+
+SCORING RUBRIC:
+- 80-100: High fit (clear AI/GPU demand, scale, urgency, budget indicators)
+- 50-79: Medium fit (some demand signals, partial readiness)
+- 0-49: Low fit (weak relevance or missing signals)
+
+INSTRUCTIONS:
+- Use only context evidence
+- Keep reasoning concise and practical for sales
+- Include both positives and concerns
+
+CONTEXT DATA:
+{context}
+
+OUTPUT FORMAT (respond in valid JSON only, no extra text):
+{{
+  "fit_score": 72,
+  "fit_tier": "medium",
+  "summary": "1-2 sentence fit summary",
+  "reasons": ["reason 1", "reason 2", "reason 3"],
+  "recommended_pitch_angles": ["angle 1", "angle 2", "angle 3"],
+  "concerns": ["concern 1", "concern 2"]
+}}"""
+
+
 REPORT_PROMPT = """You are an expert business writer who transforms complex analysis into clear, professional reports. Compile a comprehensive market research report for {company_name}.
 
 You have the following data:
