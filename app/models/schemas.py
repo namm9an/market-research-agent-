@@ -28,6 +28,7 @@ class JobKind(str, Enum):
     RESEARCH = "research"
     CRAWL = "crawl"
     EXTRACT = "extract"
+    SEARCH = "search"
 
 
 # --- Request Models ---
