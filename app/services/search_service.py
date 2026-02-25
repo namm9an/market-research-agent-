@@ -179,7 +179,7 @@ def search_company(company_name: str) -> dict:
 
     logger.info(
         f"Search complete for {company_name}: "
-        f"{len(all_sources)} total sources across 4 queries"
+        f"{len(all_sources)} total sources across {len(results) - 2} queries"
     )
     return results
 
