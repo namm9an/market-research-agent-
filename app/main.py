@@ -702,6 +702,13 @@ async def export_research(job_id: str, format: str = "md"):
     for source in r.sources:
         md += f"- [{source.title}]({source.url})\n"
 
+    qa_history = getattr(job, "qa_history", [])
+    if qa_history:
+        md += f"\n## Follow-up Q&A\n\n"
+        for item in qa_history:
+            md += f"**Q: {item['question']}**\n\n"
+            md += f"{item['answer']}\n\n"
+
     return Response(
         content=md,
         media_type="text/markdown",
