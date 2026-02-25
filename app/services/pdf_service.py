@@ -150,8 +150,17 @@ def generate_pdf(job: ResearchJob) -> bytes:
     pdf.section_title("Company Overview")
     pdf.body_text(r.company_overview)
 
-    # --- SWOT Analysis ---
-    pdf.section_title("SWOT Analysis")
+    # --- Financials ---
+    fin = getattr(r, "financials", None)
+    if fin:
+        pdf.section_title("Core Business & Financials")
+        pdf.body_text(f"Core Business: {fin.core_business_summary}")
+        pdf.body_text(f"Market Cap: {fin.market_cap} | Funding Stage: {fin.funding_stage}")
+        if fin.revenue_history:
+            pdf.sub_title("Revenue History")
+            for rev in fin.revenue_history:
+                pdf.bullet_point(f"{rev.year}: {rev.amount}")
+            pdf.ln(2)
 
     for label, items, color in [
         ("Strengths", r.swot.strengths, (39, 174, 96)),
