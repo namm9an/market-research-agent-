@@ -71,7 +71,7 @@ export default function Home() {
         const res = await executeSearch(payload, searchTopic, searchDepth, 15, searchDays);
         if (res.results && res.results.length > 0) {
           const combinedContent = res.results
-            .map((r: any) => `## Source: [${r.url}](${r.url})\n\n${r.raw_content}`)
+            .map((r: { title: string; url: string; content: string }) => `### [${r.title}](${r.url})\n\n${r.content}`)
             .join("\n\n---\n\n");
           setResultContent(combinedContent || "No content found on this domain.");
           window.dispatchEvent(new Event("mra_history_updated"));
