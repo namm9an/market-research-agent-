@@ -298,6 +298,24 @@ export default function Home() {
           </div>
         )}
 
+        {/* Structured Profile UI for Crawl & Extract */}
+        {profiles.length > 0 && (actionType === "crawl" || actionType === "extract") && (
+          <div className="mt-8 w-full animate-fade-in text-left">
+            <h2 className="text-xl font-semibold mb-6 border-b border-white/10 pb-4 flex items-center gap-2">
+              {actionType === "crawl" ? <Globe className="w-5 h-5 text-primary" /> : <FileText className="w-5 h-5 text-primary" />}
+              {actionType === "crawl" ? "AI Crawl Results" : "AI Extraction Results"}
+            </h2>
+            <div className="space-y-12">
+              {profiles.map((p, idx) => (
+                <div key={idx} className="w-full">
+                  <h3 className="text-sm font-medium text-muted/60 mb-2 font-mono truncate">{p.url}</h3>
+                  <ProfileDisplay profile={p.profile} rawText={p.raw_text} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Subtle footer info */}
         <p className="mt-8 text-xs text-muted/40">
           Powered by NVIDIA Nemotron Nano on E2E Networks — reports in ~30 seconds
