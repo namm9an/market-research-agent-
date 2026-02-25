@@ -53,7 +53,6 @@ export default function Home() {
           const pastRaw: unknown = JSON.parse(localStorage.getItem("mra_history") || "[]");
           const past = Array.isArray(pastRaw) ? pastRaw : [];
 
-          // Prevent duplicates and ignore malformed entries.
           const filtered = past
             .filter((item): item is { id: string; title?: string; date?: string } => {
               return !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string";
