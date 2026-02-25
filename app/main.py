@@ -967,7 +967,8 @@ async def ask_question(job_id: str, request: AskRequest):
                 "For people/title/current-entity questions, prioritize WEB CONTEXT and cite source numbers like [1], [2].\n"
                 f"As-of date for your answer: {utc_today} (UTC).\n"
                 "If context is insufficient, say what is missing instead of guessing.\n"
-                "If prior assistant messages conflict with WEB CONTEXT, correct them explicitly.\n\n"
+                "If prior assistant messages conflict with WEB CONTEXT, correct them explicitly.\n"
+                "Synthesize the provided web context into a helpful, conversational, human-readable answer. Do not output raw reference snippets. Use inline citations [1] naturally within your generated sentences.\n\n"
                 f"REPORT DATA:\n{report_context}\n\n"
                 f"WEB CONTEXT:\n{web_context if web_context else 'None'}"
             ),
