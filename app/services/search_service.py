@@ -122,7 +122,7 @@ def search(
 
 
 def search_company(company_name: str) -> dict:
-    """Run all 4 strategic queries for a company and return combined results.
+    """Run all strategic queries for a company and return combined results.
 
     Returns:
         Dict with keys: 'overview', 'news', 'financial', 'competitors',
