@@ -188,15 +188,19 @@ export default function Home() {
                 disabled={loading || !inputValue.trim()}
                 className="flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-white transition-all duration-150 hover:bg-primary-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ml-2"
               >
-                <option value="research">Research</option>
-                <option value="crawl">Crawl</option>
-                <option value="extract">Extract</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
+                {loading ? (
+                  <>
+                    <span className="flex gap-1">
+                      <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
+                      <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
+                      <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />
+                    </span>
+                    Processing…
+                  </>
+                ) : (
+                  "Run"
+                )}
+              </button>
             </div>
 
             <button
