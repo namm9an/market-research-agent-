@@ -116,6 +116,153 @@ def _extract_swot(data) -> SWOTAnalysis:
     return SWOTAnalysis()
 
 
+def _coerce_str_list(value) -> list[str]:
+    """Convert JSON-ish values to a clean list[str]."""
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def _extract_leaders(data) -> list[LeaderProfile]:
+    """Extract structured leader records from variable LLM JSON shapes."""
+    raw_items: list[dict] = []
+
+    if isinstance(data, list):
+        raw_items = [i for i in data if isinstance(i, dict)]
+    elif isinstance(data, dict):
+        for key in ["leaders", "leadership_team", "executives", "team", "items"]:
+            value = data.get(key)
+            if isinstance(value, list):
+                raw_items = [i for i in value if isinstance(i, dict)]
+                break
+        if not raw_items:
+            # Fallback: treat dict itself as a single record if it resembles one.
+            if any(k in data for k in ["name", "title", "role", "position"]):
+                raw_items = [data]
+
+    leaders: list[LeaderProfile] = []
+    seen: set[tuple[str, str]] = set()
+
+    for item in raw_items:
+        name = str(item.get("name") or item.get("full_name") or "").strip()
+        title = str(item.get("title") or item.get("role") or item.get("position") or "").strip()
+        function = str(item.get("function") or item.get("department") or item.get("area") or "Other").strip()
+        source_url = str(item.get("source_url") or item.get("source") or item.get("url") or "").strip()
+        evidence = str(item.get("evidence") or item.get("snippet") or "").strip()
+        confidence = str(item.get("confidence") or "medium").strip().lower()
+        if confidence not in {"high", "medium", "low"}:
+            confidence = "medium"
+
+        if not name and not title:
+            continue
+
+        dedupe_key = (name.lower(), title.lower())
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+
+        leaders.append(
+            LeaderProfile(
+                name=name,
+                title=title,
+                function=function,
+                source_url=source_url,
+                evidence=evidence,
+                confidence=confidence,
+            )
+        )
+
+    return leaders[:12]
+
+
+def _extract_icp_fit(data) -> ICPFitAssessment:
+    """Extract ICP fit assessment with defensive defaults."""
+    if not isinstance(data, dict):
+        return ICPFitAssessment()
+
+    score_raw = data.get("fit_score", data.get("score", data.get("icp_score", 0)))
+    try:
+        fit_score = int(float(score_raw))
+    except (TypeError, ValueError):
+        fit_score = 0
+    fit_score = max(0, min(100, fit_score))
+
+    fit_tier = str(data.get("fit_tier", data.get("tier", ""))).strip().lower()
+    if fit_tier not in {"high", "medium", "low"}:
+        if fit_score >= 80:
+            fit_tier = "high"
+        elif fit_score >= 50:
+            fit_tier = "medium"
+        else:
+            fit_tier = "low"
+
+    summary = str(data.get("summary", data.get("overview", ""))).strip()
+    reasons = _coerce_str_list(data.get("reasons", data.get("signals", [])))
+    pitch_angles = _coerce_str_list(data.get("recommended_pitch_angles", data.get("pitch_angles", data.get("next_steps", []))))
+    concerns = _coerce_str_list(data.get("concerns", data.get("risks", data.get("blockers", []))))
+
+    return ICPFitAssessment(
+        fit_score=fit_score,
+        fit_tier=fit_tier,
+        summary=summary,
+        reasons=reasons,
+        recommended_pitch_angles=pitch_angles,
+        concerns=concerns,
+    )
+
+
+def _extract_financials(data) -> CompanyFinancials:
+    """Extract financials with defensive defaults."""
+    if not isinstance(data, dict):
+        return CompanyFinancials()
+
+    core_business_summary = str(data.get("core_business_summary", "")).strip()
+    market_cap = str(data.get("market_cap", "Private or Unknown")).strip()
+    funding_stage = str(data.get("funding_stage", "Unknown")).strip()
+    
+    revenue_history = []
+    raw_history = data.get("revenue_history", [])
+    if isinstance(raw_history, list):
+        for item in raw_history:
+            if isinstance(item, dict):
+                year = str(item.get("year", "")).strip()
+                amount = str(item.get("amount", "")).strip()
+                if year and amount:
+                    revenue_history.append(RevenueYear(year=year, amount=amount))
+
+    return CompanyFinancials(
+        core_business_summary=core_business_summary,
+        market_cap=market_cap,
+        funding_stage=funding_stage,
+        revenue_history=revenue_history,
+    )
+
+def _extract_funding_intel(data) -> FundingIntelligence:
+    """Extract funding intelligence with fallback values"""
+    if not isinstance(data, dict):
+        return FundingIntelligence()
+        
+    timeline_raw = data.get("funding_timeline", [])
+    timeline = []
+    if isinstance(timeline_raw, list):
+        for item in timeline_raw:
+            if isinstance(item, dict):
+                timeline.append(FundingMilestone(
+                    date_or_round=str(item.get("date_or_round", "")),
+                    amount=str(item.get("amount", "")),
+                    investors=_coerce_str_list(item.get("investors", []))
+                ))
+
+    return FundingIntelligence(
+        investor_types=_coerce_str_list(data.get("investor_types", [])),
+        funding_timeline=timeline,
+        capital_allocation_purpose=str(data.get("capital_allocation_purpose", "Unknown")),
+        e2e_compute_lead_status=str(data.get("e2e_compute_lead_status", "Cold")),
+        compute_spending_evidence=str(data.get("compute_spending_evidence", "No evidence found"))
+    )
+
 async def run_research(job: ResearchJob) -> ResearchJob:
     """Execute the full research pipeline for a company.
 
