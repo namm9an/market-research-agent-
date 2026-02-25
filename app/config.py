@@ -23,7 +23,7 @@ for d in [CACHE_DIR, REPORTS_DIR, FALLBACK_DIR]:
 VLLM_BASE_URL: str = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1/")
 MODEL_NAME: str = os.getenv("MODEL_NAME", "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16")
 LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
-LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2000"))
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "8192"))
 LLM_ENABLE_THINKING: bool = os.getenv("LLM_ENABLE_THINKING", "false").lower() == "true"
 
 # --- Tavily ---
