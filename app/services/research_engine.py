@@ -399,6 +399,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
         # Assemble final report
         job.report = ResearchReport(
             company_overview=report_data.get("company_overview", ""),
+            financials=financials,
             swot=swot,
             trends=trends,
             competitive_landscape=report_data.get("competitive_landscape", ""),
