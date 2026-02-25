@@ -318,6 +318,58 @@ async def run_research(job: ResearchJob) -> ResearchJob:
 
         logger.info(f"[{job.job_id}] Trends generated: {len(trends)} trends")
 
+        # Generate leadership discovery
+        leaders_prompt = LEADERS_PROMPT.format(
+            company_name=job.query,
+            context=context,
+        )
+        leaders_response = await llm_service.chat_completion([
+            {"role": "system", "content": "You are a B2B sales intelligence analyst. Respond only in valid JSON."},
+            {"role": "user", "content": leaders_prompt},
+        ])
+        leaders_data = _parse_json_response(leaders_response)
+        leaders = _extract_leaders(leaders_data)
+        logger.info(f"[{job.job_id}] Leaders extracted: {len(leaders)}")
+
+        # Generate ICP fit for E2E Networks
+        icp_prompt = ICP_FIT_PROMPT.format(
+            company_name=job.query,
+            context=context,
+        )
+        icp_response = await llm_service.chat_completion([
+            {"role": "system", "content": "You are an enterprise GTM analyst. Respond only in valid JSON."},
+            {"role": "user", "content": icp_prompt},
+        ])
+        icp_data = _parse_json_response(icp_response)
+        icp_fit = _extract_icp_fit(icp_data)
+        logger.info(f"[{job.job_id}] ICP fit scored: {icp_fit.fit_score} ({icp_fit.fit_tier})")
+        
+        # Generate Deep Funding Intelligence
+        funding_prompt = FUNDING_INTELLIGENCE_PROMPT.format(
+            company_name=job.query,
+            context=context,
+        )
+        funding_response = await llm_service.chat_completion([
+            {"role": "system", "content": "You are a Tech Venture Analyst. Respond only in valid JSON."},
+            {"role": "user", "content": funding_prompt},
+        ])
+        funding_data = _parse_json_response(funding_response)
+        funding_intel = _extract_funding_intel(funding_data)
+        logger.info(f"[{job.job_id}] Funding Intel generated. Lead status: {funding_intel.e2e_compute_lead_status}")
+
+        # Generate financials and core business metrics
+        financials_prompt = FINANCIALS_PROMPT.format(
+            company_name=job.query,
+            context=context,
+        )
+        financials_response = await llm_service.chat_completion([
+            {"role": "system", "content": "You are a financial performance analyst. Respond only in valid JSON."},
+            {"role": "user", "content": financials_prompt},
+        ])
+        financials_data = _parse_json_response(financials_response)
+        financials = _extract_financials(financials_data)
+        logger.info(f"[{job.job_id}] Financials extracted: Cap={financials.market_cap}, RevYrs={len(financials.revenue_history)}")
+
         # --- Stage 3: Compile Report ---
         job.status = JobStatus.COMPILING
         logger.info(f"[{job.job_id}] Stage 3: Compiling report")
