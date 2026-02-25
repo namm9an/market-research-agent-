@@ -284,6 +284,12 @@ export default function Home() {
                     if (!props.src || props.src === "") return null;
                     return <img {...props} alt={props.alt || "Markdown internal image"} />;
                   },
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  pre: ({ node, ...props }) => (
+                    <div className="overflow-x-auto bg-black/40 rounded-lg p-4 my-4 border border-white/10 custom-scrollbar">
+                      <pre {...props} className="bg-transparent p-0 m-0 text-xs" />
+                    </div>
+                  ),
                 }}
               >
                 {resultContent}
