@@ -1004,9 +1004,10 @@ async def ask_question(job_id: str, request: AskRequest):
                         f"Target company: {job.query}\n"
                         f"As-of date: {utc_today} (UTC)\n"
                         "Output requirements:\n"
-                        "- Provide concise bullet points with names and titles.\n"
-                        "- Every factual bullet must end with citation markers like [1], [2].\n"
-                        "- If reliable names are not present, say so clearly.\n"
+                        "- Synthesize the provided web context into a helpful, conversational, human-readable answer.\n"
+                        "- Do not output raw reference snippets like just URLs or lists of facts.\n"
+                        "- Use inline citations like [1] naturally within your generated sentences.\n"
+                        "- If reliable names or information are not present, say so clearly.\n"
                     ),
                 },
                 {
