@@ -698,17 +698,6 @@ async def export_research(job_id: str, format: str = "md"):
     for t in r.swot.threats:
         md += f"- {t}\n"
 
-    md += f"\n## Market Trends\n\n"
-    for trend in r.trends:
-        md += f"### {trend.title} ({trend.relevance})\n"
-        md += f"{trend.description}\n\n"
-
-    md += f"## Competitive Landscape\n\n{r.competitive_landscape}\n\n"
-
-    md += f"## Key Findings\n\n"
-    for i, finding in enumerate(r.key_findings, 1):
-        md += f"{i}. {finding}\n"
-
     md += f"\n## Sources\n\n"
     for source in r.sources:
         md += f"- [{source.title}]({source.url})\n"
