@@ -268,11 +268,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* Generic Result Area */}
-        {resultContent && actionType !== "research" && (
-          <div className="glass-card mt-4 w-full animate-fade-in p-6 text-left">
-            <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-4">
-              {actionType === "crawl" ? "Crawl Result" : "Extraction Result"}
+        {/* Generic Search Result Area */}
+        {resultContent && actionType === "search" && (
+          <div className="glass-card mt-4 w-full animate-fade-in p-6 text-left overflow-hidden">
+            <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-4 flex items-center gap-2">
+              <Search className="w-5 h-5 text-primary" />
+              Search Results
             </h2>
             <div className="prose prose-sm prose-invert max-w-none break-all">
               <ReactMarkdown
