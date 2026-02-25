@@ -801,6 +801,8 @@ async def raw_search(payload: SearchRequest, request: Request):
 async def extract_content(payload: ExtractRequest, request: Request):
     """Extract content from URLs using Tavily extract API and structure via LLM."""
     from app.services.search_service import extract_urls
+    from app.prompts.templates import CRAWL_STRUCTURING_PROMPT
+    from app.services.research_engine import _parse_json_response
 
     if not payload.urls:
         raise HTTPException(status_code=400, detail="At least one URL is required")
