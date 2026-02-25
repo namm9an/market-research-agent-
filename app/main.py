@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from starlette.requests import Request
