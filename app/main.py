@@ -799,7 +799,7 @@ async def raw_search(payload: SearchRequest, request: Request):
 @app.post("/api/extract")
 @limiter.limit("10/minute")
 async def extract_content(payload: ExtractRequest, request: Request):
-    """Extract content from URLs using Tavily extract API."""
+    """Extract content from URLs using Tavily extract API and structure via LLM."""
     from app.services.search_service import extract_urls
 
     if not payload.urls:
