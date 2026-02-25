@@ -26,6 +26,13 @@ export default function Home() {
 
   const router = useRouter();
 
+  const tabs = [
+    { id: "research", label: "Research", icon: <Pickaxe className="w-4 h-4" /> },
+    { id: "search", label: "Search", icon: <Search className="w-4 h-4" /> },
+    { id: "extract", label: "Extract", icon: <FileText className="w-4 h-4" /> },
+    { id: "crawl", label: "Crawl", icon: <Globe className="w-4 h-4" /> },
+  ];
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload = inputValue.trim();
