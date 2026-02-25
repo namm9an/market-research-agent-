@@ -759,6 +759,43 @@ class ExtractRequest(BaseModel):
 class CrawlRequest(BaseModel):
     url: str = Field(..., min_length=5, description="URL to crawl")
 
+@app.post("/api/search")
+@limiter.limit("20/minute")
+async def raw_search(payload: SearchRequest, request: Request):
+    """Execute a raw search using the Tavily API without LLM analysis."""
+    from app.services.search_service import search
+
+    started_at = datetime.utcnow()
+    job = ResearchJob(
+        query=payload.query,
+        job_kind=JobKind.SEARCH,
+        status=JobStatus.SEARCHING,
+    )
+    jobs[job.job_id] = job
+
+    try:
+        results = search(
+            query=payload.query,
+            topic=payload.topic,
+            search_depth=payload.search_depth,
+            max_results=payload.max_results,
+            days=payload.days
+        )
+    except Exception as e:
+        job.status = JobStatus.FAILED
+        job.error = str(e)
+        job.completed_at = datetime.utcnow()
+        job.duration_seconds = (job.completed_at - started_at).total_seconds()
+        logger.error(f"Search failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    job.status = JobStatus.COMPLETED
+    job.operation_result = results
+    job.completed_at = datetime.utcnow()
+    job.duration_seconds = (job.completed_at - started_at).total_seconds()
+
+    return results
+
 @app.post("/api/extract")
 @limiter.limit("10/minute")
 async def extract_content(payload: ExtractRequest, request: Request):
