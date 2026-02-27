@@ -188,49 +188,52 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
   "compute_spending_evidence": "They specifically raised $50M to buy H100 GPUs and train new foundation models, indicating urgent massive compute needs."
 }}"""
 
-CRAWL_STRUCTURING_PROMPT = """Analyze the following raw scraped website text and extract a structured Tracxn-style company profile.
+CRAWL_STRUCTURING_PROMPT = """You are a sales intelligence analyst. Extract actionable sales signals from this company's website content.
 
-Company Text Data:
+Your output helps sales reps prepare for cold calls in under 5 minutes. Be concise, tactical, and only use information present in the text.
+
+Website Content:
 {context}
 
-You must return a single JSON object. If a specific piece of information is not found in the text, use null or an empty array [].
-DO NOT hallucinate. Only use facts present in the provided text.
-
-OUTPUT FORMAT (Respond IN VALID JSON ONLY, no markdown tags outside the JSON block):
+OUTPUT FORMAT (Respond in valid JSON only, no extra text):
 {{
-  "firmographics": {{
-    "name": "Company Name",
-    "year_founded": "YYYY or null",
-    "hq_location": "City, Country or null",
-    "employee_count": "e.g., 50-200 or null"
+  "positioning_snapshot": {{
+    "company_name": "Company Name",
+    "headline": "Their main headline or tagline from homepage",
+    "value_proposition": "Their core value prop in one sentence",
+    "primary_cta": "Their main call-to-action (e.g. Book Demo, Get Started, Contact Sales)",
+    "target_audience": "Who they say they serve (e.g. enterprises, developers, startups)"
   }},
-  "executives": [
-    {{ "name": "FullName", "title": "Job Title" }}
-  ],
-  "financials": {{
-    "last_funding_round": "e.g., Series B or null",
-    "parts_of_funding": "e.g., Equity, Debt breakdown or null",
-    "total_funding": "$X.XM or null",
-    "investors": ["Investor A", "Investor B"]
+  "products_capabilities": {{
+    "core_products": ["Product 1", "Product 2"],
+    "technical_stack": ["GPU types", "APIs", "Infrastructure mentions"],
+    "pricing_visible": "yes/no/freemium",
+    "deployment_model": "SaaS / On-prem / Hybrid / Unknown"
   }},
-  "people_funded": [
-    "Founder 1", "Founder 2", "Managing Director"
-  ],
-  "portfolio": [
-    "Product family 1", "Subsidiary 2"
-  ],
-  "offerings": [
-    "Product or Service 1 description",
-    "Product or Service 2 description"
-  ],
-  "positioning": {{
-    "customer_it_caters": "ICP description / target audiences",
-    "unique_value_prop": "Their main differentiator or mission statement"
+  "pain_point_signals": {{
+    "keywords_detected": ["scale", "cost", "latency", "security", "sovereign", "compliance"],
+    "primary_narrative": "Their main pain point story in one sentence",
+    "secondary_narrative": "Secondary pain angle if present, or null"
   }},
-  "trust_signals": [
-    "Named client 1",
-    "SOC2 / ISO Certification",
-    "Key Partnership"
-  ]
+  "buying_signals": [
+    {{
+      "signal": "Description of a buying/expansion signal",
+      "source": "Where on the site this was found (e.g. Careers page, Blog, Homepage)",
+      "strength": "strong / moderate / weak"
+    }}
+  ],
+  "objection_radar": {{
+    "soc2_iso": "mentioned / not found",
+    "sla_transparency": "mentioned / not found",
+    "onprem_offering": "yes / no / not found",
+    "enterprise_support": "mentioned / not found",
+    "data_residency": "mentioned / not found"
+  }},
+  "contact_gtm": {{
+    "sales_emails": ["sales@...", "enterprise@..."],
+    "regions_served": ["India", "Global", "US"],
+    "enterprise_vs_startup": "Both / Enterprise-focused / Startup-focused / Unknown",
+    "demo_available": "yes / no / not found"
+  }}
 }}"""
 

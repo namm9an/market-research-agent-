@@ -835,7 +835,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
                 try:
                     prompt = CRAWL_STRUCTURING_PROMPT.format(context=raw[:20000]) # Pass up to ~5k tokens
                     llm_resp = await llm_service.chat_completion([
-                        {"role": "system", "content": "You are a professional firmographic data extraction API. Respond only in valid JSON."},
+                        {"role": "system", "content": "You are a sales intelligence extraction API. Respond only in valid JSON."},
                         {"role": "user", "content": prompt}
                     ])
                     parsed = _parse_json_response(llm_resp)
@@ -890,7 +890,7 @@ async def crawl_content(payload: CrawlRequest, request: Request):
                 try:
                     prompt = CRAWL_STRUCTURING_PROMPT.format(context=raw[:20000]) # Pass up to ~5k tokens
                     llm_resp = await llm_service.chat_completion([
-                        {"role": "system", "content": "You are a professional firmographic data extraction API. Respond only in valid JSON."},
+                        {"role": "system", "content": "You are a sales intelligence extraction API. Respond only in valid JSON."},
                         {"role": "user", "content": prompt}
                     ])
                     parsed = _parse_json_response(llm_resp)
