@@ -149,15 +149,21 @@ def _extract_leaders(data, company_name: str = "") -> list[LeaderProfile]:
         name = str(item.get("name") or item.get("full_name") or "").strip()
         title = str(item.get("title") or item.get("role") or item.get("position") or "").strip()
         function = str(item.get("function") or item.get("department") or item.get("area") or "Other").strip()
-        source_url = str(item.get("source_url") or item.get("source") or item.get("url") or "").strip()
+        source_url = ""  # Ignore whatever the LLM returns — we build our own
         evidence = str(item.get("evidence") or item.get("snippet") or "").strip()
         confidence = str(item.get("confidence") or "medium").strip().lower()
 
-        # Always override source_url with a LinkedIn people search URL
-        if name and company_name:
-            from urllib.parse import quote
-            linkedin_query = f"{name} {company_name}"
+        # ALWAYS build a clean LinkedIn people search URL
+        # Strip any URLs or website addresses from name/company_name
+        import re as _re
+        from urllib.parse import quote
+        clean_name = _re.sub(r'https?://\S+', '', name).strip()
+        clean_company = _re.sub(r'https?://\S+', '', company_name).strip()
+        if clean_name and clean_company:
+            linkedin_query = f"{clean_name} {clean_company}"
             source_url = f"https://www.linkedin.com/search/results/people/?keywords={quote(linkedin_query)}"
+        elif clean_name:
+            source_url = f"https://www.linkedin.com/search/results/people/?keywords={quote(clean_name)}"
         if confidence not in {"high", "medium", "low"}:
             confidence = "medium"
 
