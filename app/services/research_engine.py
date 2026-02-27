@@ -125,7 +125,7 @@ def _coerce_str_list(value) -> list[str]:
     return []
 
 
-def _extract_leaders(data) -> list[LeaderProfile]:
+def _extract_leaders(data, company_name: str = "") -> list[LeaderProfile]:
     """Extract structured leader records from variable LLM JSON shapes."""
     raw_items: list[dict] = []
 
@@ -152,6 +152,12 @@ def _extract_leaders(data) -> list[LeaderProfile]:
         source_url = str(item.get("source_url") or item.get("source") or item.get("url") or "").strip()
         evidence = str(item.get("evidence") or item.get("snippet") or "").strip()
         confidence = str(item.get("confidence") or "medium").strip().lower()
+
+        # Always override source_url with a LinkedIn people search URL
+        if name and company_name:
+            from urllib.parse import quote
+            linkedin_query = f"{name} {company_name}"
+            source_url = f"https://www.linkedin.com/search/results/people/?keywords={quote(linkedin_query)}"
         if confidence not in {"high", "medium", "low"}:
             confidence = "medium"
 
@@ -328,7 +334,7 @@ async def run_research(job: ResearchJob) -> ResearchJob:
             {"role": "user", "content": leaders_prompt},
         ])
         leaders_data = _parse_json_response(leaders_response)
-        leaders = _extract_leaders(leaders_data)
+        leaders = _extract_leaders(leaders_data, company_name=job.query)
         logger.info(f"[{job.job_id}] Leaders extracted: {len(leaders)}")
 
         # Generate ICP fit for E2E Networks
