@@ -52,12 +52,12 @@ export default function ReportPage() {
         return () => clearTimeout(timer);
     }, [fetchJob]);
 
-    const isLoading =
+    const isLoading = !!(
         job &&
         job.status !== "completed" &&
-        job.status !== "failed";
-    const isComplete = job?.status === "completed" && (job.report || job.operation_result);
-    const isFailed = job?.status === "failed" || error;
+        job.status !== "failed");
+    const isComplete = job?.status === "completed" && !!(job.report || job.operation_result);
+    const isFailed = !!(job?.status === "failed" || error);
 
     return (
         <div className="min-h-screen px-4 py-8">
@@ -163,7 +163,7 @@ export default function ReportPage() {
                 )}
 
                 {/* Completed report (Crawl) */}
-                {isComplete && job?.job_kind === "crawl" && job.operation_result?.structured_results && (
+                {isComplete && job?.job_kind === "crawl" && !!(job.operation_result?.structured_results) && (
                     <div className="flex flex-col gap-8">
                         <div className="flex items-center justify-between pb-6 border-b border-white/10">
                             <div>
