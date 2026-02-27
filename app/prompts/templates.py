@@ -50,6 +50,10 @@ INSTRUCTIONS:
 - Use only evidence present in context
 - Do not invent people or titles
 - If evidence is weak, lower confidence
+- CRITICAL: For source_url, ALWAYS generate a LinkedIn search URL in this exact format:
+  https://www.linkedin.com/search/results/people/?keywords=FirstName%20LastName%20{company_name}
+  Replace spaces with %20. This applies to EVERY leader, no exceptions.
+  Do NOT use magazine articles, Tracxn, Crunchbase, or any other URLs as source_url.
 
 CONTEXT DATA:
 {context}
@@ -60,7 +64,7 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
     "name": "Full Name",
     "title": "Role Title (e.g. Founder, CEO)",
     "function": "Technology | Engineering | Data/AI | Finance | Operations | Other",
-    "source_url": "https://...",
+    "source_url": "https://www.linkedin.com/search/results/people/?keywords=Full%20Name%20{company_name}",
     "evidence": "Short snippet supporting this leadership mapping",
     "confidence": "high"
   }}
