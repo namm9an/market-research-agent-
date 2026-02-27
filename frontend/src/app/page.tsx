@@ -16,6 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resultContent, setResultContent] = useState("");
+  const [searchResults, setSearchResults] = useState<{ title: string; url: string; content: string }[]>([]);
   const [profiles, setProfiles] = useState<{ profile: ProfileData; raw_text: string; url: string }[]>([]);
 
   // Advanced options state
@@ -40,6 +41,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResultContent("");
+    setSearchResults([]);
     setProfiles([]);
 
     try {
@@ -69,17 +71,20 @@ export default function Home() {
       } else if (actionType === "search") {
         const res = await executeSearch(payload, searchTopic, searchDepth, 15, searchDays);
         if (res.results && res.results.length > 0) {
-          const combinedContent = res.results
-            .map((r: { title: string; url: string; content: string }) => `### [${r.title}](${r.url})\n\n${r.content}`)
-            .join("\n\n---\n\n");
-          setResultContent(`## Search Results\n\n${combinedContent}`);
+          // Store structured results for proper rendering
+          setSearchResults(res.results);
           window.dispatchEvent(new Event("mra_history_updated"));
         } else {
           throw new Error("No results found.");
         }
       } else if (actionType === "crawl") {
+        // Auto-prepend https:// if missing
+        let crawlTarget = payload;
+        if (!crawlTarget.startsWith("http://") && !crawlTarget.startsWith("https://")) {
+          crawlTarget = "https://" + crawlTarget;
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res = await crawlUrl(payload) as any;
+        const res = await crawlUrl(crawlTarget) as any;
         if (res.structured_results && res.structured_results.length > 0) {
           setProfiles(res.structured_results);
           window.dispatchEvent(new Event("mra_history_updated"));
@@ -137,6 +142,7 @@ export default function Home() {
                   onClick={() => {
                     setActionType(tab.id as ActionType);
                     setResultContent("");
+                    setSearchResults([]);
                     setError("");
                     setShowAdvanced(false);
                   }}
@@ -255,32 +261,33 @@ export default function Home() {
           </div>
         )}
 
-        {/* Generic Search Result Area */}
-        {resultContent && actionType === "search" && (
+        {/* Search Results — Structured Cards */}
+        {searchResults.length > 0 && actionType === "search" && (
           <div className="glass-card mt-4 w-full animate-fade-in p-6 text-left overflow-hidden">
             <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-4 flex items-center gap-2">
               <Search className="w-5 h-5 text-primary" />
-              Search Results
+              Search Results ({searchResults.length})
             </h2>
-            <div className="prose prose-sm prose-invert max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  // eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
-                  img: ({ node, ...props }) => {
-                    if (!props.src || props.src === "") return null;
-                    return <img {...props} alt={props.alt || "Markdown internal image"} />;
-                  },
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  pre: ({ node, ...props }) => (
-                    <div className="overflow-x-auto bg-black/40 rounded-lg p-4 my-4 border border-white/10 custom-scrollbar">
-                      <pre {...props} className="bg-transparent p-0 m-0 text-xs" />
-                    </div>
-                  ),
-                }}
-              >
-                {resultContent}
-              </ReactMarkdown>
+            <div className="space-y-4">
+              {searchResults.map((r, i) => (
+                <div key={i} className="p-4 rounded-xl bg-white/[0.03] border border-white/8 hover:border-primary/30 transition-colors">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-base font-semibold text-primary hover:text-primary-hover transition-colors flex items-center gap-2"
+                  >
+                    {r.title || "Untitled"}
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                  {r.url && (
+                    <p className="text-xs text-muted/50 mt-1 truncate font-mono">{r.url}</p>
+                  )}
+                  {r.content && (
+                    <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{r.content}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
