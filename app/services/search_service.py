@@ -342,7 +342,9 @@ async def _crawl4ai_fetch(url: str) -> dict:
     from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
 
     browser_cfg = BrowserConfig(headless=True)
-    run_cfg = CrawlerRunConfig()
+    run_cfg = CrawlerRunConfig(
+        page_timeout=90000,
+    )
 
     async with AsyncWebCrawler(config=browser_cfg) as crawler:
         result = await crawler.arun(url=url, config=run_cfg)
