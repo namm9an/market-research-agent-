@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { startResearch, executeSearch, crawlUrl, extractUrls } from "@/lib/api";
+import { startResearch, executeSearch, crawlUrl } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Search, Globe, FileText, Pickaxe, Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Globe, Pickaxe, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import ProfileDisplay, { ProfileData } from "@/components/ProfileDisplay";
 
-type ActionType = "research" | "search" | "extract" | "crawl";
+type ActionType = "research" | "search" | "crawl";
 
 export default function Home() {
   const [inputValue, setInputValue] = useState("");
@@ -29,7 +29,6 @@ export default function Home() {
   const tabs = [
     { id: "research", label: "Research", icon: <Pickaxe className="w-4 h-4" /> },
     { id: "search", label: "Search", icon: <Search className="w-4 h-4" /> },
-    { id: "extract", label: "Extract", icon: <FileText className="w-4 h-4" /> },
     { id: "crawl", label: "Crawl", icon: <Globe className="w-4 h-4" /> },
   ];
 
@@ -85,18 +84,7 @@ export default function Home() {
           setProfiles(res.structured_results);
           window.dispatchEvent(new Event("mra_history_updated"));
         } else if (res.failed_results && res.failed_results.length > 0) {
-          throw new Error(`Tavily failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
-        } else {
-          throw new Error("No results found. The URL may be protected from scraping.");
-        }
-      } else if (actionType === "extract") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res = await extractUrls([payload]) as any;
-        if (res.structured_results && res.structured_results.length > 0) {
-          setProfiles(res.structured_results);
-          window.dispatchEvent(new Event("mra_history_updated"));
-        } else if (res.failed_results && res.failed_results.length > 0) {
-          throw new Error(`Tavily failed to extract URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
+          throw new Error(`Failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
         } else {
           throw new Error("No results found. The URL may be protected from scraping.");
         }
@@ -111,7 +99,7 @@ export default function Home() {
   // Determine placeholder based on tab
   let placeholder = "Enter a company or industry name...";
   if (actionType === "search") placeholder = "Ask any question or search topic...";
-  if (actionType === "crawl" || actionType === "extract") placeholder = "https://example.com";
+  if (actionType === "crawl") placeholder = "https://example.com";
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4">
@@ -170,8 +158,7 @@ export default function Home() {
               <div className="pl-4 pr-2 text-primary">
                 {actionType === "search" ? <Search className="w-6 h-6" /> :
                   actionType === "crawl" ? <Globe className="w-6 h-6" /> :
-                    actionType === "extract" ? <FileText className="w-6 h-6" /> :
-                      <Pickaxe className="w-6 h-6" />}
+                    <Pickaxe className="w-6 h-6" />}
               </div>
               <input
                 type="text"
@@ -298,12 +285,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* Structured Profile UI for Crawl & Extract */}
-        {profiles.length > 0 && (actionType === "crawl" || actionType === "extract") && (
+        {/* Structured Profile UI for Crawl */}
+        {profiles.length > 0 && actionType === "crawl" && (
           <div className="mt-8 w-full animate-fade-in text-left">
             <h2 className="text-xl font-semibold mb-6 border-b border-white/10 pb-4 flex items-center gap-2">
-              {actionType === "crawl" ? <Globe className="w-5 h-5 text-primary" /> : <FileText className="w-5 h-5 text-primary" />}
-              {actionType === "crawl" ? "AI Crawl Results" : "AI Extraction Results"}
+              <Globe className="w-5 h-5 text-primary" />
+              AI Crawl Results
             </h2>
             <div className="space-y-12">
               {profiles.map((p, idx) => (
