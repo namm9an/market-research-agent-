@@ -934,7 +934,8 @@ async def crawl_content(payload: CrawlRequest, request: Request):
     
     # Save to jobs dictionary so /api/research/{job_id} can fetch it via history
     jobs[job.job_id] = job
-    
+    _persist_job(job)
+
     return job
 
 
