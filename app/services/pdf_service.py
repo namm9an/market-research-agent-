@@ -9,6 +9,13 @@ from app.models.schemas import ResearchJob
 
 logger = logging.getLogger(__name__)
 
+# ── PDF Style Constants ──────────────────────────────────────
+FONT_FAMILY = "Helvetica"
+SUCCESS_COLOR = (34, 197, 94)     # green
+WARNING_COLOR = (234, 179, 8)     # yellow/amber
+DANGER_COLOR = (239, 68, 68)      # red
+TEXT_COLOR = (31, 41, 55)         # dark gray
+
 
 def sanitize_text(text: str) -> str:
     """Replace Unicode characters that fpdf2's built-in fonts can't render."""
