@@ -93,6 +93,12 @@ def search(
     categories = "general"
     if topic == "news":
         categories = "news"
+        # Force exact match for entities in news to prevent fuzzy fallback.
+        # If it's short (1-3 words) and not a question, wrap in quotes so engines treat it as a proper noun.
+        is_question = any(q in query.lower() for q in ["what", "how", "who", "why", "when", "?", "latest news on"])
+        words = query.strip().split()
+        if not query.startswith('"') and len(words) <= 3 and not is_question:
+            query = f'"{query}"'
 
     params = {
         "q": query,
