@@ -103,7 +103,7 @@ export default function ReportPage() {
                             Research Failed
                         </h2>
                         <p className="text-sm text-muted">
-                            {error || job?.error || "An unknown error occurred."}
+                            {error || (job?.error ? String(job.error) : null) || "An unknown error occurred."}
                         </p>
                         <Link
                             href="/"
