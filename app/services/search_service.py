@@ -121,7 +121,7 @@ def search(
         return {"results": [], "answer": ""}
 
     # Map SearXNG response to our standard format
-    searxng_results = raw.get("results", [])[:effective_max]
+    searxng_results = raw.get("results", [])[:effective_max * 2]  # fetch extra for filtering
     results = []
     for r in searxng_results:
         results.append({
