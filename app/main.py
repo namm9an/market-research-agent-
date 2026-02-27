@@ -883,7 +883,18 @@ async def crawl_content(payload: CrawlRequest, request: Request):
     )
     jobs[job.job_id] = job
 
-    result = crawl_url(payload.url)
+    try:
+        result = crawl_url(payload.url)
+    except Exception as e:
+        err_msg = str(e)
+        if "Timeout" in err_msg or "timeout" in err_msg:
+            err_msg = f"Page took too long to load (>{90}s). The site may be slow or blocking automated access."
+        job.status = JobStatus.FAILED
+        job.error = err_msg
+        job.completed_at = datetime.utcnow()
+        job.duration_seconds = (job.completed_at - started_at).total_seconds()
+        raise HTTPException(status_code=400, detail=err_msg)
+
     if result.get("failed"):
         job.status = JobStatus.FAILED
         job.error = result.get("error", "Crawl failed")
