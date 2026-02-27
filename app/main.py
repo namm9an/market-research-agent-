@@ -505,12 +505,20 @@ async def _run_research_task(job_id: str) -> None:
     await run_research(job)
 
     # Save completed report to disk
-    if job.status == JobStatus.COMPLETED and job.report:
-        report_file = REPORTS_DIR / f"{job_id}.json"
+    if job.status == JobStatus.COMPLETED:
+        _persist_job(job)
+
+
+def _persist_job(job: ResearchJob) -> None:
+    """Save any completed job (research, crawl, search, extract) to disk."""
+    try:
+        report_file = REPORTS_DIR / f"{job.job_id}.json"
         report_file.write_text(
             json.dumps(job.model_dump(), default=str, indent=2)
         )
-        logger.info(f"Report saved: {report_file}")
+        logger.info(f"Job saved: {report_file}")
+    except Exception as e:
+        logger.error(f"Failed to persist job {job.job_id}: {e}")
 
 
 # --- Endpoints ---
