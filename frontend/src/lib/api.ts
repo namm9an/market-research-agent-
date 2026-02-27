@@ -1,6 +1,6 @@
-// Default to relative path for current domain when deployed,
-// or fallback to localhost backend when running locally
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+// Since we now use Next.js rewrites to proxy /api to the backend,
+// all fetch requests should just use relative paths (e.g. /api/research).
+const API_BASE = "";
 
 // ── Types ──────────────────────────────────────────────
 
