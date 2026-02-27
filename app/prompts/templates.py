@@ -45,11 +45,19 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
 LEADERS_PROMPT = """You are a B2B sales intelligence analyst. Extract current leadership contacts for {company_name} from the context.
 
 INSTRUCTIONS:
-- Return 5-10 likely decision-makers relevant for infra/cloud/GPU conversations
-- Specifically look for Founders and Co-Founders, as well as executive and senior technical roles (CEO, CTO, CIO, VP Engineering, Head of Infra, Head of AI/Data)
-- Use only evidence present in context
-- Do not invent people or titles
-- If evidence is weak, lower confidence
+- Return ONLY leaders you are highly confident actually exist at this company
+- Specifically look for Founders, Co-Founders, CEO, CTO, CIO, VP Engineering, Head of Infra, Head of AI/Data
+- TRUSTED SOURCES (use evidence from these only):
+  * LinkedIn profile snippets (highest trust)
+  * Official company website / about pages
+  * Crunchbase, Tracxn, or PitchBook profiles
+  * Major news outlets (TechCrunch, Bloomberg, Forbes)
+- REJECT these sources — do NOT extract leaders that only appear in:
+  * Random magazine articles, blogs, or press releases
+  * Unverified directories or aggregator sites
+- Do NOT invent people or guess titles
+- If a person only appears in one unreliable source, do NOT include them
+- If evidence is from a single source only, set confidence to "low"
 - Leave source_url as empty string "", it will be auto-generated
 
 CONTEXT DATA:
