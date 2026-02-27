@@ -175,15 +175,21 @@ def search_company(company_name: str) -> dict:
         topic="general",
     )
 
-    # Query 5: Leadership (for sales intelligence / outreach)
-    results["leadership"] = search(
-        query=f"{company_name} leadership team executives board CTO CIO VP engineering",
+    # Query 5: C-suite & Founders
+    results["leadership_csuite"] = search(
+        query=f"{company_name} CEO CTO CIO CFO founder co-founder managing director",
         topic="general",
     )
 
-    # Query 6: LinkedIn leadership profiles (for better leader discovery)
+    # Query 6: VP & Head level leadership
+    results["leadership_vp"] = search(
+        query=f"{company_name} VP engineering VP sales VP product head of infrastructure head of AI head of data",
+        topic="general",
+    )
+
+    # Query 7: LinkedIn leadership profiles (all levels)
     results["linkedin_leaders"] = search(
-        query=f"{company_name} CEO CTO CIO founder VP engineering site:linkedin.com",
+        query=f"{company_name} CEO CTO VP engineering head infrastructure site:linkedin.com",
         topic="general",
     )
 
@@ -220,7 +226,7 @@ def format_search_context(search_results: dict) -> str:
     sections = []
     total_chars = 0
 
-    for category in ["overview", "news", "financial", "competitors", "leadership", "linkedin_leaders"]:
+    for category in ["overview", "news", "financial", "competitors", "leadership_csuite", "leadership_vp", "linkedin_leaders"]:
         data = search_results.get(category, {})
         answer = data.get("answer", "")
         results = data.get("results", [])

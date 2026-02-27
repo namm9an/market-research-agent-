@@ -45,8 +45,10 @@ OUTPUT FORMAT (respond in valid JSON only, no extra text):
 LEADERS_PROMPT = """You are a B2B sales intelligence analyst. Extract current leadership contacts for {company_name} from the context.
 
 INSTRUCTIONS:
-- Return ONLY leaders you are highly confident actually exist at this company
-- Specifically look for Founders, Co-Founders, CEO, CTO, CIO, VP Engineering, Head of Infra, Head of AI/Data
+- Return 8-12 leaders across ALL levels of the organization:
+  * C-SUITE: CEO, CTO, CIO, CFO, COO, Founder, Co-Founder, Managing Director
+  * VP LEVEL: VP Engineering, VP Sales, VP Product, VP Infrastructure, VP Cloud, VP Data
+  * HEAD/DIRECTOR: Head of Infrastructure, Head of AI, Head of Engineering, Head of Sales, Director of Engineering, Director of Cloud
 - TRUSTED SOURCES (use evidence from these only):
   * LinkedIn profile snippets (highest trust)
   * Official company website / about pages

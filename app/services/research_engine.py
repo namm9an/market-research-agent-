@@ -158,9 +158,15 @@ def _extract_leaders(data, company_name: str = "") -> list[LeaderProfile]:
         import re as _re
         from urllib.parse import quote
         clean_name = _re.sub(r'https?://\S+', '', name).strip()
+        clean_title = _re.sub(r'https?://\S+', '', title).strip()
         clean_company = _re.sub(r'https?://\S+', '', company_name).strip()
         if clean_name and clean_company:
-            linkedin_query = f"{clean_name} {clean_company}"
+            # Include title for more accurate LinkedIn results
+            linkedin_parts = [clean_name]
+            if clean_title:
+                linkedin_parts.append(clean_title)
+            linkedin_parts.append(clean_company)
+            linkedin_query = " ".join(linkedin_parts)
             source_url = f"https://www.linkedin.com/search/results/people/?keywords={quote(linkedin_query)}"
         elif clean_name:
             source_url = f"https://www.linkedin.com/search/results/people/?keywords={quote(clean_name)}"
