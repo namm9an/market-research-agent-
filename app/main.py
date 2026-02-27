@@ -1152,4 +1152,17 @@ async def startup():
     logger.info(f"SearXNG configured: {bool(SEARXNG_BASE_URL)}")
     vllm_ok = await llm_service.check_vllm_health()
     logger.info(f"vLLM connected: {vllm_ok}")
+
+    # Reload persisted jobs from disk
+    loaded = 0
+    if REPORTS_DIR.exists():
+        for f in REPORTS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+                job = ResearchJob(**data)
+                jobs[job.job_id] = job
+                loaded += 1
+            except Exception as e:
+                logger.warning(f"Failed to load {f.name}: {e}")
+    logger.info(f"Loaded {loaded} persisted jobs from disk")
     logger.info("=" * 50)
