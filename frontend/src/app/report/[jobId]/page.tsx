@@ -16,6 +16,7 @@ import FundingIntelligenceCard from "@/components/FundingIntelligenceCard";
 import ExportButtons from "@/components/ExportButtons";
 import QAChat from "@/components/QAChat";
 import Link from "next/link";
+import ProfileDisplay, { type ProfileData } from "@/components/ProfileDisplay";
 
 const POLL_INTERVAL = 3000;
 
@@ -55,7 +56,7 @@ export default function ReportPage() {
         job &&
         job.status !== "completed" &&
         job.status !== "failed";
-    const isComplete = job?.status === "completed" && job.report;
+    const isComplete = job?.status === "completed" && (job.report || job.operation_result);
     const isFailed = job?.status === "failed" || error;
 
     return (
@@ -113,8 +114,8 @@ export default function ReportPage() {
                     </div>
                 )}
 
-                {/* Completed report */}
-                {isComplete && job.report && (
+                {/* Completed report (Research) */}
+                {isComplete && job?.job_kind === "research" && job.report && (
                     <div className="flex flex-col gap-8">
                         <ReportHeader job={job} />
 
@@ -158,6 +159,28 @@ export default function ReportPage() {
                             history={job.qa_history}
                             remaining={job.qa_remaining}
                         />
+                    </div>
+                )}
+
+                {/* Completed report (Crawl) */}
+                {isComplete && job?.job_kind === "crawl" && job.operation_result?.structured_results && (
+                    <div className="flex flex-col gap-8">
+                        <div className="flex items-center justify-between pb-6 border-b border-white/10">
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight text-white mb-2 pb-2 mr-2 pr-2">
+                                    AI Crawl Results
+                                </h1>
+                                <p className="text-sm font-mono text-primary/80 truncate max-w-xl">
+                                    {job.query}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-12">
+                            {(job.operation_result.structured_results as { profile: ProfileData; raw_text: string }[]).map((p, idx) => (
+                                <ProfileDisplay key={idx} profile={p.profile} rawText={p.raw_text} />
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

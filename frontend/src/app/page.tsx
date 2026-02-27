@@ -85,11 +85,32 @@ export default function Home() {
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res = await crawlUrl(crawlTarget) as any;
-        if (res.structured_results && res.structured_results.length > 0) {
-          setProfiles(res.structured_results);
-          window.dispatchEvent(new Event("mra_history_updated"));
-        } else if (res.failed_results && res.failed_results.length > 0) {
-          throw new Error(`Failed to crawl URL: ${res.failed_results[0].error || 'Protected or inaccessible'}`);
+        const opResult = res.operation_result || {};
+        if (opResult.structured_results && opResult.structured_results.length > 0) {
+          setProfiles(opResult.structured_results);
+
+          // Save to Sidebar History (same as research)
+          try {
+            if (res.job_id) {
+              const historyItem = { id: res.job_id, title: crawlTarget, date: new Date().toISOString(), type: "crawl" };
+              const pastRaw: unknown = JSON.parse(localStorage.getItem("mra_history") || "[]");
+              const past = Array.isArray(pastRaw) ? pastRaw : [];
+
+              const filtered = past
+                .filter((item): item is { id: string; title?: string; date?: string; type?: string } => {
+                  return !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string";
+                })
+                .filter((item) => item.id !== res.job_id)
+                .slice(0, 19);
+
+              localStorage.setItem("mra_history", JSON.stringify([historyItem, ...filtered]));
+              window.dispatchEvent(new Event("mra_history_updated"));
+            }
+          } catch (e) {
+            console.error("Failed to save history", e);
+          }
+        } else if (res.error || res.status === "failed") {
+          throw new Error(`Failed to crawl URL: ${res.error || 'Protected or inaccessible'}`);
         } else {
           throw new Error("No results found. The URL may be protected from scraping.");
         }

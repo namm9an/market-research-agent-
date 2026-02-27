@@ -909,7 +909,11 @@ async def crawl_content(payload: CrawlRequest, request: Request):
     job.operation_result = output_payload
     job.completed_at = datetime.utcnow()
     job.duration_seconds = (job.completed_at - started_at).total_seconds()
-    return output_payload
+    
+    # Save to jobs dictionary so /api/research/{job_id} can fetch it via history
+    jobs[job.job_id] = job
+    
+    return job
 
 
 # --- Follow-up Q&A ---
