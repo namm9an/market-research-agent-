@@ -18,7 +18,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.config import MODEL_NAME, TAVILY_API_KEY, REPORTS_DIR
+from app.config import MODEL_NAME, SEARXNG_BASE_URL, REPORTS_DIR
 from app.models.schemas import (
     ResearchRequest,
     ResearchJob,
@@ -170,7 +170,7 @@ def _compact_crawl_text(text: str) -> str:
 
 
 def _build_crawl_context(seed_url: str, crawl_result: dict, max_chars: int = 22000) -> str:
-    """Build compact multi-source context string from Tavily crawl output."""
+    """Build compact multi-source context string from crawl output."""
     results = crawl_result.get("results", [])
     if not isinstance(results, list):
         return ""
@@ -344,7 +344,7 @@ def _result_mentions_company(item: dict, company_tokens: list[str]) -> bool:
 
 
 def _build_web_context(company: str, question: str, previous_questions: list[str] | None = None) -> str:
-    """Fetch and format compact Tavily context for follow-up factual questions."""
+    """Fetch and format compact search context for follow-up factual questions."""
     q = question.lower()
     search_queries = [f"{company} {question}"]
 
@@ -523,7 +523,7 @@ async def health_check():
         status="ok" if vllm_ok else "degraded",
         model=MODEL_NAME,
         vllm_connected=vllm_ok,
-        tavily_configured=bool(TAVILY_API_KEY),
+        search_configured=bool(SEARXNG_BASE_URL),
     )
 
 
@@ -762,7 +762,7 @@ class CrawlRequest(BaseModel):
 @app.post("/api/search")
 @limiter.limit("20/minute")
 async def raw_search(payload: SearchRequest, request: Request):
-    """Execute a raw search using the Tavily API without LLM analysis."""
+    """Execute a raw search using SearXNG without LLM analysis."""
     from app.services.search_service import search
 
     started_at = datetime.utcnow()
@@ -799,7 +799,7 @@ async def raw_search(payload: SearchRequest, request: Request):
 @app.post("/api/extract")
 @limiter.limit("10/minute")
 async def extract_content(payload: ExtractRequest, request: Request):
-    """Extract content from URLs using Tavily extract API and structure via LLM."""
+    """Extract content from URLs using Crawl4AI and structure via LLM."""
     from app.services.search_service import extract_urls
     from app.prompts.templates import CRAWL_STRUCTURING_PROMPT
     from app.services.research_engine import _parse_json_response
@@ -816,7 +816,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
     )
     jobs[job.job_id] = job
 
-    # We use extract_depth="advanced" to force Tavily to render JavaScript pages
+    # Crawl4AI handles JavaScript rendering via headless browser
     result = extract_urls(payload.urls)
     if result.get("failed"):
         job.status = JobStatus.FAILED
@@ -859,7 +859,7 @@ async def extract_content(payload: ExtractRequest, request: Request):
 @app.post("/api/crawl")
 @limiter.limit("10/minute")
 async def crawl_content(payload: CrawlRequest, request: Request):
-    """Crawl a URL using Tavily crawl API and structure via LLM."""
+    """Crawl a URL using Crawl4AI and structure via LLM."""
     from app.services.search_service import crawl_url
     from app.prompts.templates import CRAWL_STRUCTURING_PROMPT
     from app.services.research_engine import _parse_json_response
@@ -1122,7 +1122,7 @@ async def startup():
     logger.info("=" * 50)
     logger.info("Market Research AI Agent starting...")
     logger.info(f"Model: {MODEL_NAME}")
-    logger.info(f"Tavily configured: {bool(TAVILY_API_KEY)}")
+    logger.info(f"SearXNG configured: {bool(SEARXNG_BASE_URL)}")
     vllm_ok = await llm_service.check_vllm_health()
     logger.info(f"vLLM connected: {vllm_ok}")
     logger.info("=" * 50)

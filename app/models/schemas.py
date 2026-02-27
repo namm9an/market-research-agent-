@@ -140,7 +140,7 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     model: str = ""
     vllm_connected: bool = False
-    tavily_configured: bool = False
+    search_configured: bool = False
 
 
 # --- Q&A Models ---

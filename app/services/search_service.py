@@ -1,36 +1,23 @@
-"""Search service — wraps Tavily API for AI-native web search."""
+"""Search service — wraps SearXNG (search) and Crawl4AI (extract/crawl)."""
 
 import re
 import json
 import hashlib
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from httpx import HTTPStatusError
-from tavily import TavilyClient, MissingAPIKeyError
+import httpx
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
-from app.config import TAVILY_API_KEY, MAX_SEARCH_RESULTS, CACHE_DIR
+from app.config import SEARXNG_BASE_URL, MAX_SEARCH_RESULTS, CACHE_DIR
 
 logger = logging.getLogger(__name__)
 
-# Initialize Tavily client
-_tavily_client: TavilyClient | None = None
 
-try:
-    _tavily_client = TavilyClient(api_key=TAVILY_API_KEY) if TAVILY_API_KEY else None
-except MissingAPIKeyError:
-    logger.warning("TAVILY_API_KEY not found. Search functionality will be disabled.")
-    _tavily_client = None
-
-
-def _get_client() -> TavilyClient:
-    """Returns the initialized Tavily client."""
-    if _tavily_client is None:
-        raise ValueError("TAVILY_API_KEY not set or Tavily client failed to initialize.")
-    return _tavily_client
+# ── Cache helpers ───────────────────────────────────────────────
 
 
 def _cache_key(query: str, topic: str, search_depth: str, days: int | None, time_range: str | None) -> str:
@@ -55,6 +42,9 @@ def _save_cache(key: str, data: dict) -> None:
     logger.info(f"Cached: {key}")
 
 
+# ── SearXNG Search ──────────────────────────────────────────────
+
+
 def search(
     query: str,
     topic: str = "general",
@@ -64,19 +54,19 @@ def search(
     days: int | None = None,
     use_cache: bool = True,
 ) -> dict:
-    """Search the web using Tavily.
+    """Search the web using self-hosted SearXNG.
 
     Args:
         query: Search query string.
-        topic: "general", "news", or "finance".
-        search_depth: "basic" or "advanced".
+        topic: "general" or "news".
+        search_depth: Ignored for SearXNG (kept for API compat).
         max_results: Override default max results.
         time_range: "day", "week", "month", "year" or None.
-        days: Number of days back (for news topic).
+        days: Number of days — mapped to time_range if set.
         use_cache: Whether to check/save cache.
 
     Returns:
-        Tavily search response dict with 'results', 'answer', etc.
+        Dict with 'results' and 'answer' keys (same shape as before).
     """
     # Check cache first
     key = _cache_key(query, topic, search_depth, days, time_range)
@@ -85,39 +75,67 @@ def search(
         if cached:
             return cached
 
-    client = _get_client()
+    effective_max = max_results or MAX_SEARCH_RESULTS
 
-    kwargs = {
-        "query": query,
-        "search_depth": search_depth,
-        "topic": topic,
-        "max_results": max_results or MAX_SEARCH_RESULTS,
-        "include_raw_content": "markdown",
-        "include_answer": True,
-        "include_images": False,
+    # Map days → SearXNG time_range
+    effective_time_range = time_range
+    if not effective_time_range and days:
+        if days <= 1:
+            effective_time_range = "day"
+        elif days <= 7:
+            effective_time_range = "week"
+        elif days <= 30:
+            effective_time_range = "month"
+        else:
+            effective_time_range = "year"
+
+    # Map our topic to SearXNG categories
+    categories = "general"
+    if topic == "news":
+        categories = "news"
+
+    params = {
+        "q": query,
+        "format": "json",
+        "categories": categories,
+        "pageno": 1,
     }
+    if effective_time_range:
+        params["time_range"] = effective_time_range
 
-    if time_range:
-        kwargs["time_range"] = time_range
-    if days:
-        kwargs["days"] = days
+    logger.info(f"SearXNG search: query='{query}', topic={topic}")
 
-    logger.info(f"Tavily search: query='{query}', topic={topic}")
-    response = client.search(**kwargs)
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.get(f"{SEARXNG_BASE_URL}/search", params=params)
+            resp.raise_for_status()
+            raw = resp.json()
+    except Exception as e:
+        logger.error(f"SearXNG search failed: {e}")
+        return {"results": [], "answer": ""}
 
-    # Clean the raw content of each search result to prevent JSON/CSS noise
-    if response.get("results"):
-        for result in response["results"]:
-            if result.get("content"):
-                result["content"] = clean_extracted_content(result["content"])
-            if result.get("raw_content"):
-                result["raw_content"] = clean_extracted_content(result["raw_content"])
+    # Map SearXNG response to our standard format
+    searxng_results = raw.get("results", [])[:effective_max]
+    results = []
+    for r in searxng_results:
+        results.append({
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "content": clean_extracted_content(r.get("content", "")),
+            "raw_content": clean_extracted_content(r.get("content", "")),
+            "score": r.get("score", 0),
+        })
+
+    response = {
+        "results": results,
+        "answer": "",  # SearXNG doesn't generate AI summaries; our LLM handles this
+    }
 
     # Save to cache
     if use_cache:
         _save_cache(key, response)
 
-    logger.info(f"Tavily returned {len(response.get('results', []))} results")
+    logger.info(f"SearXNG returned {len(results)} results")
     return response
 
 
@@ -126,7 +144,7 @@ def search_company(company_name: str) -> dict:
 
     Returns:
         Dict with keys: 'overview', 'news', 'financial', 'competitors', 'leadership',
-        each containing Tavily search results.
+        each containing search results.
     """
     logger.info(f"Starting comprehensive search for: {company_name}")
 
@@ -148,7 +166,7 @@ def search_company(company_name: str) -> dict:
     # Query 3: Financial data
     results["financial"] = search(
         query=f"{company_name} revenue growth funding valuation",
-        topic="finance",
+        topic="general",
     )
 
     # Query 4: Competitive landscape
@@ -205,7 +223,6 @@ def format_search_context(search_results: dict) -> str:
         section_parts = [f"\n## {section_title}\n"]
 
         if answer:
-            # Tavily's AI summary — very useful and concise
             truncated_answer = answer[:800]
             section_parts.append(f"Summary: {truncated_answer}\n")
             total_chars += len(truncated_answer)
@@ -214,7 +231,7 @@ def format_search_context(search_results: dict) -> str:
             if total_chars >= MAX_TOTAL_CHARS:
                 break
             title = r.get("title", "Untitled")
-            content = r.get("content", "")  # Use snippet, NOT raw_content
+            content = r.get("content", "")
             url = r.get("url", "")
 
             # Truncate content to keep things manageable
@@ -267,50 +284,97 @@ def clean_extracted_content(raw_content: str) -> str:
     return '\n'.join(cleaned).strip()
 
 
-@retry(
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    stop=stop_after_attempt(3),
-    retry=retry_if_exception_type((Exception, HTTPStatusError)),
-    reraise=True
-)
-def extract_urls(urls: list[str]) -> dict:
-    """Extract content directly from a list of URLs using the Tavily extract API."""
-    client = _get_client()
-    logger.info(f"Tavily extract: urls={urls} depth='advanced'")
+# ── Crawl4AI Extract & Crawl ───────────────────────────────────
+
+
+def _run_async(coro):
+    """Run an async coroutine from sync code safely."""
     try:
-        response = client.extract(urls=urls, extract_depth="advanced")
-        
-        # Clean each result's raw_content before returning
-        if response.get("results"):
-            for result in response["results"]:
-                if result.get("raw_content"):
-                    result["raw_content"] = clean_extracted_content(result["raw_content"])
-                    
-        return response
-    except Exception as e:
-        logger.error(f"Failed to extract URLs {urls}: {e}")
-        return {"failed": True, "error": str(e)}
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # We're inside an existing event loop (e.g., FastAPI)
+        # Create a new thread to run the async code
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result()
+    else:
+        return asyncio.run(coro)
+
+
+async def _crawl4ai_fetch(url: str) -> dict:
+    """Use Crawl4AI to extract content from a single URL."""
+    from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
+
+    browser_cfg = BrowserConfig(headless=True)
+    run_cfg = CrawlerRunConfig()
+
+    async with AsyncWebCrawler(config=browser_cfg) as crawler:
+        result = await crawler.arun(url=url, config=run_cfg)
+        return {
+            "url": url,
+            "raw_content": clean_extracted_content(result.markdown or ""),
+            "success": result.success,
+        }
+
 
 @retry(
     wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(3),
-    retry=retry_if_exception_type((Exception, HTTPStatusError)),
-    reraise=True
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
+)
+def extract_urls(urls: list[str]) -> dict:
+    """Extract content from a list of URLs using Crawl4AI.
+
+    Returns same shape as old Tavily extract: {results: [{url, raw_content}], failed_results: []}
+    """
+    logger.info(f"Crawl4AI extract: urls={urls}")
+    results = []
+    failed = []
+
+    for url in urls:
+        try:
+            data = _run_async(_crawl4ai_fetch(url))
+            if data.get("success"):
+                results.append({
+                    "url": data["url"],
+                    "raw_content": data["raw_content"],
+                })
+            else:
+                failed.append({"url": url, "error": "Crawl4AI extraction failed"})
+        except Exception as e:
+            logger.error(f"Failed to extract {url}: {e}")
+            failed.append({"url": url, "error": str(e)})
+
+    return {"results": results, "failed_results": failed}
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
 )
 def crawl_url(url: str, extract_depth: str = "advanced") -> dict:
-    """Crawl a URL using the Tavily crawl API."""
-    client = _get_client()
-    logger.info(f"Tavily crawl: url='{url}' depth='{extract_depth}'")
+    """Crawl a URL using Crawl4AI.
+
+    Returns same shape as old Tavily crawl: {results: [{url, raw_content}]}
+    """
+    logger.info(f"Crawl4AI crawl: url='{url}'")
     try:
-        response = client.crawl(url=url, extract_depth=extract_depth)
-        
-        # Clean each result's raw_content before returning
-        if response.get("results"):
-            for result in response["results"]:
-                if result.get("raw_content"):
-                    result["raw_content"] = clean_extracted_content(result["raw_content"])
-                    
-        return response
+        data = _run_async(_crawl4ai_fetch(url))
+        if data.get("success"):
+            return {
+                "results": [{
+                    "url": data["url"],
+                    "raw_content": data["raw_content"],
+                }]
+            }
+        else:
+            return {"failed": True, "error": "Crawl4AI failed to crawl this URL"}
     except Exception as e:
         logger.error(f"Failed to crawl URL {url}: {e}")
         return {"failed": True, "error": str(e)}
