@@ -123,14 +123,29 @@ def search(
     # Map SearXNG response to our standard format
     searxng_results = raw.get("results", [])[:effective_max * 2]  # fetch extra for filtering
     results = []
+
+    # Build relevance keywords from the original query (strip quotes, lowercase)
+    raw_query = query.strip('"').lower()
+    query_words = [w for w in raw_query.split() if len(w) > 2]
+
     for r in searxng_results:
+        title = r.get("title", "")
+        content = clean_extracted_content(r.get("content", ""))
+        combined = f"{title} {content}".lower()
+
+        # Keep result if any meaningful query word appears in title or content
+        if query_words and not any(w in combined for w in query_words):
+            continue
+
         results.append({
-            "title": r.get("title", ""),
+            "title": title,
             "url": r.get("url", ""),
-            "content": clean_extracted_content(r.get("content", "")),
-            "raw_content": clean_extracted_content(r.get("content", "")),
+            "content": content,
+            "raw_content": content,
             "score": r.get("score", 0),
         })
+        if len(results) >= effective_max:
+            break
 
     response = {
         "results": results,
