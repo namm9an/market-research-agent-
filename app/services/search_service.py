@@ -344,6 +344,7 @@ async def _crawl4ai_fetch(url: str) -> dict:
     browser_cfg = BrowserConfig(headless=True)
     run_cfg = CrawlerRunConfig(
         page_timeout=90000,
+        wait_until="domcontentloaded",
     )
 
     async with AsyncWebCrawler(config=browser_cfg) as crawler:
