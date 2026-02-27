@@ -313,9 +313,13 @@ async def _crawl4ai_fetch(url: str) -> dict:
 
     async with AsyncWebCrawler(config=browser_cfg) as crawler:
         result = await crawler.arun(url=url, config=run_cfg)
+        content = clean_extracted_content(result.markdown or "")
+        # Truncate to ~4000 chars (~1000 tokens) to fit within LLM context window
+        if len(content) > 4000:
+            content = content[:4000] + "\n\n[... content truncated for LLM processing ...]"
         return {
             "url": url,
-            "raw_content": clean_extracted_content(result.markdown or ""),
+            "raw_content": content,
             "success": result.success,
         }
 
