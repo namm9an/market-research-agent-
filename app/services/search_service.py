@@ -181,6 +181,12 @@ def search_company(company_name: str) -> dict:
         topic="general",
     )
 
+    # Query 6: LinkedIn leadership profiles (for better leader discovery)
+    results["linkedin_leaders"] = search(
+        query=f"{company_name} CEO CTO CIO founder VP engineering site:linkedin.com",
+        topic="general",
+    )
+
     # Collect all sources
     all_sources = []
     for category, data in results.items():
@@ -214,7 +220,7 @@ def format_search_context(search_results: dict) -> str:
     sections = []
     total_chars = 0
 
-    for category in ["overview", "news", "financial", "competitors", "leadership"]:
+    for category in ["overview", "news", "financial", "competitors", "leadership", "linkedin_leaders"]:
         data = search_results.get(category, {})
         answer = data.get("answer", "")
         results = data.get("results", [])
@@ -363,22 +369,71 @@ def extract_urls(urls: list[str]) -> dict:
     reraise=True,
 )
 def crawl_url(url: str, extract_depth: str = "advanced") -> dict:
-    """Crawl a URL using Crawl4AI.
+    """Deep-crawl a URL using Crawl4AI: scrape the seed page, discover internal
+    links, then scrape up to 5 linked pages for richer context.
 
-    Returns same shape as old Tavily crawl: {results: [{url, raw_content}]}
+    Returns: {results: [{url, raw_content}, ...]}
     """
-    logger.info(f"Crawl4AI crawl: url='{url}'")
+    from urllib.parse import urlparse, urljoin
+
+    logger.info(f"Crawl4AI deep-crawl: url='{url}'")
+    parsed_seed = urlparse(url)
+    seed_domain = parsed_seed.netloc
+
     try:
-        data = _run_async(_crawl4ai_fetch(url))
-        if data.get("success"):
-            return {
-                "results": [{
-                    "url": data["url"],
-                    "raw_content": data["raw_content"],
-                }]
-            }
-        else:
-            return {"failed": True, "error": "Crawl4AI failed to crawl this URL"}
+        # Step 1: Crawl the seed URL
+        seed_data = _run_async(_crawl4ai_fetch(url))
+        if not seed_data.get("success"):
+            return {"failed": True, "error": "Crawl4AI failed to crawl the seed URL"}
+
+        all_results = [{
+            "url": seed_data["url"],
+            "raw_content": seed_data["raw_content"],
+        }]
+
+        # Step 2: Discover internal links from the seed page's markdown
+        link_pattern = re.compile(r'\[([^\]]+)\]\((https?://[^)]+)\)')
+        discovered_links = []
+        for _text, href in link_pattern.findall(seed_data["raw_content"]):
+            link_parsed = urlparse(href)
+            # Only follow internal links (same domain)
+            if link_parsed.netloc == seed_domain and href != url:
+                if href not in discovered_links:
+                    discovered_links.append(href)
+
+        # Step 3: Crawl up to 5 discovered internal pages
+        max_sub_pages = min(5, len(discovered_links))
+        logger.info(f"Deep-crawl: found {len(discovered_links)} internal links, crawling {max_sub_pages}")
+
+        for sub_url in discovered_links[:max_sub_pages]:
+            try:
+                sub_data = _run_async(_crawl4ai_fetch(sub_url))
+                if sub_data.get("success") and sub_data.get("raw_content"):
+                    all_results.append({
+                        "url": sub_data["url"],
+                        "raw_content": sub_data["raw_content"],
+                    })
+            except Exception as e:
+                logger.warning(f"Sub-page crawl failed for {sub_url}: {e}")
+                continue
+
+        # Step 4: Combine all page content, with a total cap of 6000 chars
+        combined_content = ""
+        for i, r in enumerate(all_results):
+            page_header = f"\n\n--- PAGE {i+1}: {r['url']} ---\n\n"
+            combined_content += page_header + r["raw_content"]
+
+        if len(combined_content) > 6000:
+            combined_content = combined_content[:6000] + "\n\n[... content truncated ...]"
+
+        logger.info(f"Deep-crawl complete: {len(all_results)} pages, {len(combined_content)} chars")
+
+        return {
+            "results": [{
+                "url": url,
+                "raw_content": combined_content,
+            }]
+        }
     except Exception as e:
-        logger.error(f"Failed to crawl URL {url}: {e}")
+        logger.error(f"Failed to deep-crawl URL {url}: {e}")
         return {"failed": True, "error": str(e)}
